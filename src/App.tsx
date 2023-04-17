@@ -1,26 +1,5 @@
 import {CartesianGrid, Legend, Line, LineChart, XAxis, YAxis} from "recharts"
-import oneRepMaxes from "./data/oneRepMaxes.json"
-import dateRange from "./helpers/dateRange"
-
-const dataMap: Record<string, Record<string, number>> = {}
-let earliest = "9999-99-99"
-let latest = "0000-00-00"
-
-for (const item of oneRepMaxes) {
-  dataMap[item.date] = dataMap[item.date] ?? {}
-  dataMap[item.date][item.exercise] = item.oneRepMax
-  if (item.date < earliest) earliest = item.date
-  if (item.date > latest) latest = item.date
-}
-
-const data = dateRange(earliest, latest).map((date) => {
-  return {
-    date,
-    ...dataMap[date],
-  }
-})
-
-console.log(data)
+import oneRepMaxes from "./data/formatted/oneRepMaxes.json"
 
 export default function App() {
   return (
@@ -28,7 +7,7 @@ export default function App() {
       <LineChart
         width={1200}
         height={500}
-        data={data}
+        data={oneRepMaxes}
         margin={{top: 5, right: 30, left: 20, bottom: 5}}
       >
         <CartesianGrid strokeDasharray="3 3" vertical={true} />
