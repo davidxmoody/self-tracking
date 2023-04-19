@@ -48,7 +48,7 @@ for (const item of rawData) {
 
 const workoutDates = Object.keys(workouts).sort()
 const paddedDates = dateRange(
-  workoutDates[0],
+  rawData[0].Date.split(" ")[0],
   workoutDates[workoutDates.length - 1],
 )
 

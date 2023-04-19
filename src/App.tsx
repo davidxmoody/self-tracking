@@ -1,5 +1,22 @@
-import {CartesianGrid, Legend, Line, LineChart, XAxis, YAxis} from "recharts"
+import {
+  CartesianGrid,
+  Label,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceArea,
+  XAxis,
+  YAxis,
+} from "recharts"
 import oneRepMaxes from "./data/formatted/oneRepMaxes.json"
+import programs from "./data/formatted/programs.json"
+
+const exercises = {
+  deadlift: "green",
+  squat: "blue",
+  bench: "red",
+  overhead: "orange",
+}
 
 export default function App() {
   return (
@@ -14,34 +31,32 @@ export default function App() {
         <XAxis dataKey="date" />
         <YAxis />
         <Legend />
-        <Line
-          type="monotone"
-          dataKey="deadlift"
-          stroke="green"
-          connectNulls
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="squat"
-          stroke="blue"
-          connectNulls
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="bench"
-          stroke="red"
-          connectNulls
-          dot={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="overhead"
-          stroke="orange"
-          connectNulls
-          dot={false}
-        />
+
+        {programs.map((program, i) => (
+          <ReferenceArea
+            x1={program.start}
+            y1={0}
+            x2={
+              programs[i + 1]?.start ?? oneRepMaxes[oneRepMaxes.length - 1].date
+            }
+            y2={140}
+            stroke="red"
+            strokeOpacity={0.3}
+          >
+            <Label value={program.name} position="insideBottom" />
+          </ReferenceArea>
+        ))}
+
+        {Object.entries(exercises).map(([exercise, color]) => (
+          <Line
+            key={exercise}
+            dataKey={exercise}
+            type="monotone"
+            stroke={color}
+            connectNulls
+            dot={false}
+          />
+        ))}
       </LineChart>
     </div>
   )
