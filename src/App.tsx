@@ -1,7 +1,7 @@
 import {
   CartesianGrid,
   Label,
-  Legend,
+  LabelList,
   Line,
   LineChart,
   ReferenceArea,
@@ -18,6 +18,21 @@ const exercises = {
   overhead: "orange",
 }
 
+const yTickSize = 20
+const maxHeight =
+  yTickSize *
+  Math.ceil(
+    oneRepMaxes.reduce((max, {deadlift}) => Math.max(max, deadlift ?? 0), 0) /
+      yTickSize,
+  )
+
+const lastExerciseDates = Object.fromEntries(
+  Object.keys(exercises).map((exercise) => [
+    exercise,
+    oneRepMaxes.findLast((item) => exercise in item)?.date,
+  ]),
+)
+
 export default function App() {
   return (
     <div style={{marginTop: 100}}>
@@ -25,12 +40,18 @@ export default function App() {
         width={1200}
         height={500}
         data={oneRepMaxes}
-        margin={{top: 5, right: 30, left: 20, bottom: 5}}
+        margin={{top: 5, right: 130, left: 20, bottom: 5}}
       >
-        <CartesianGrid strokeDasharray="3 3" vertical={true} />
-        <XAxis dataKey="date" />
-        <YAxis />
-        <Legend />
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis
+          dataKey="date"
+          ticks={programs.map((p) => p.start)}
+          padding={{right: 120}}
+        />
+        <YAxis
+          domain={[0, maxHeight]}
+          tickCount={Math.floor(maxHeight / yTickSize) + 1}
+        />
 
         {programs.map((program, i) => (
           <ReferenceArea
@@ -39,7 +60,7 @@ export default function App() {
             x2={
               programs[i + 1]?.start ?? oneRepMaxes[oneRepMaxes.length - 1].date
             }
-            y2={140}
+            y2={maxHeight}
             stroke="red"
             strokeOpacity={0.3}
           >
@@ -55,7 +76,13 @@ export default function App() {
             stroke={color}
             connectNulls
             dot={false}
-          />
+          >
+            <LabelList
+              dataKey={exercise + "Last"}
+              formatter={(value: number) => `${value}kg ${exercise}`}
+              position="right"
+            />
+          </Line>
         ))}
       </LineChart>
     </div>

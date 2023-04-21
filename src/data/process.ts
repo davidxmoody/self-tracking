@@ -77,6 +77,11 @@ const data = paddedDates.map((date) => {
   return {date, ...oneRepMaxes}
 })
 
+Object.values(trackedExercises).forEach((exercise) => {
+  const lastDay: any = data.findLast((day) => exercise in day)
+  lastDay[exercise + "Last"] = lastDay[exercise]
+})
+
 writeFileSync(
   __dirname + "/formatted/oneRepMaxes.json",
   JSON.stringify(data, null, 2),
