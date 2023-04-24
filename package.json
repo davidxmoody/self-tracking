@@ -21,6 +21,7 @@
     "web-vitals": "^3.3.1"
   },
   "scripts": {
+    "import": "mv ~/Downloads/strong.csv src/data/unformatted/strong.csv && npm run process",
     "process": "ts-node src/data/process.ts",
     "start": "react-scripts start",
     "build": "react-scripts build",
