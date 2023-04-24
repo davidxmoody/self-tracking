@@ -10,6 +10,11 @@ function getOneRepMax(weight: number, reps: number) {
   return Math.round(weight / (1.0278 - 0.0278 * reps))
 }
 
+const dataToIgnore: Record<string, string[]> = {
+  "2022-04-08": ["overhead"],
+  "2021-04-08": ["squat"],
+}
+
 const trackedExercises: Record<string, string> = {
   "Deadlift (Barbell)": "deadlift",
   "Squat (Barbell)": "squat",
@@ -32,6 +37,8 @@ for (const item of rawData) {
   if (!exercise) continue
 
   const date: string = item.Date.split(" ")[0]
+
+  if (dataToIgnore[date]?.includes(exercise)) continue
 
   const reps = parseFloat(item.Reps)
   let weight = parseFloat(item.Weight)

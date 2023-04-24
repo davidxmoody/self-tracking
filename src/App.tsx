@@ -1,10 +1,12 @@
 import {
   CartesianGrid,
+  Dot,
   Label,
   LabelList,
   Line,
   LineChart,
   ReferenceArea,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
@@ -25,13 +27,6 @@ const maxHeight =
     oneRepMaxes.reduce((max, {deadlift}) => Math.max(max, deadlift ?? 0), 0) /
       yTickSize,
   )
-
-const lastExerciseDates = Object.fromEntries(
-  Object.keys(exercises).map((exercise) => [
-    exercise,
-    oneRepMaxes.findLast((item) => exercise in item)?.date,
-  ]),
-)
 
 export default function App() {
   return (
@@ -75,7 +70,7 @@ export default function App() {
             type="monotone"
             stroke={color}
             connectNulls
-            dot={false}
+            dot={<Dot r={1} />}
           >
             <LabelList
               dataKey={exercise + "Last"}
@@ -84,6 +79,8 @@ export default function App() {
             />
           </Line>
         ))}
+
+        <Tooltip />
       </LineChart>
     </div>
   )
