@@ -2,83 +2,9 @@
 //
 // Record types:
 //
-// 1402587 "HKQuantityTypeIdentifierActiveEnergyBurned"
-//  271037 "HKQuantityTypeIdentifierBasalEnergyBurned"
-//  232910 "HKQuantityTypeIdentifierStepCount"
-//  233329 "HKQuantityTypeIdentifierDistanceWalkingRunning"
-//   14310 "HKQuantityTypeIdentifierFlightsClimbed"
-//   12252 "HKQuantityTypeIdentifierDistanceCycling"
-//
-//  135795 "HKQuantityTypeIdentifierAppleExerciseTime"
-//   59949 "HKQuantityTypeIdentifierAppleStandTime"
-//   45880 "HKCategoryTypeIdentifierAppleStandHour"
-//
 //   17526 "HKCategoryTypeIdentifierSleepAnalysis"
-//
-//    1107 "HKQuantityTypeIdentifierDietaryEnergyConsumed"
-//    1108 "HKQuantityTypeIdentifierDietaryProtein"
-//    1107 "HKQuantityTypeIdentifierDietarySugar"
-//    1107 "HKQuantityTypeIdentifierDietarySodium"
-//    1107 "HKQuantityTypeIdentifierDietaryFatTotal"
-//    1107 "HKQuantityTypeIdentifierDietaryFatSaturated"
-//    1107 "HKQuantityTypeIdentifierDietaryCarbohydrates"
-//    1049 "HKQuantityTypeIdentifierDietaryFiber"
-//
-//    1013 "HKQuantityTypeIdentifierBodyMass"
-//    1003 "HKQuantityTypeIdentifierBodyMassIndex"
-//     986 "HKQuantityTypeIdentifierBodyFatPercentage"
-//     676 "HKQuantityTypeIdentifierLeanBodyMass"
-//
-//       3 "HKQuantityTypeIdentifierHeight"
-//
-//     191 "HKCategoryTypeIdentifierMindfulSession"
-//
-//      67 "HKCategoryTypeIdentifierHighHeartRateEvent"
-
-//  563904 "HKQuantityTypeIdentifierHeartRate"
-//   13238 "HKQuantityTypeIdentifierHeartRateVariabilitySDNN"
-//    1957 "HKQuantityTypeIdentifierRestingHeartRate"
-//    1830 "HKQuantityTypeIdentifierWalkingHeartRateAverage"
-//   27135 "HKQuantityTypeIdentifierRespiratoryRate"
-//   21926 "HKQuantityTypeIdentifierWalkingStepLength"
-//   21921 "HKQuantityTypeIdentifierWalkingSpeed"
-//   16847 "HKQuantityTypeIdentifierOxygenSaturation"
-//   39015 "HKQuantityTypeIdentifierEnvironmentalAudioExposure"
-//   15441 "HKQuantityTypeIdentifierHeadphoneAudioExposure"
-//   10060 "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage"
-//    5772 "HKQuantityTypeIdentifierWalkingAsymmetryPercentage"
-//    1513 "HKQuantityTypeIdentifierStairDescentSpeed"
-//    1080 "HKQuantityTypeIdentifierStairAscentSpeed"
-//      81 "HKQuantityTypeIdentifierAppleWalkingSteadiness"
-//      81 "HKQuantityTypeIdentifierSixMinuteWalkTestDistance"
-//       5 "HKCategoryTypeIdentifierAudioExposureEvent"
-//       7 "HKQuantityTypeIdentifierDietaryWater"
-//       1 "HKCategoryTypeIdentifierLowHeartRateEvent"
-//       1 "HKDataTypeSleepDurationGoal"
 
 // Example record:
-//
-// {
-//   '$name': 'record',
-//   metadataentry: [
-//     { key: 'HKTimeZone', value: 'Europe/London' },
-//     { key: 'HKWasUserEntered', value: '0' },
-//     { key: 'Withings User Identifier', value: '<redacted>' },
-//     { key: 'Modified Date', value: '2023-04-10 06:05:44 +0000' },
-//     { key: 'HKExternalUUID', value: '<redacted>' },
-//     { key: 'Health Mate App Version', value: '5.14.1' }
-//   ],
-//   '$attrs': {
-//     type: 'HKQuantityTypeIdentifierBodyMass',
-//     sourcename: 'Withings',
-//     sourceversion: '5140101',
-//     unit: 'lb',
-//     creationdate: '2023-04-10 09:54:17 +0100',
-//     startdate: '2023-04-10 07:05:24 +0100',
-//     enddate: '2023-04-10 07:05:24 +0100',
-//     value: '<redacted>'
-//   }
-// }
 //
 // {
 //   '$name': 'record',
@@ -101,32 +27,131 @@
 //   }
 // }
 
-import {createReadStream} from "fs"
+import {createReadStream, writeFileSync} from "fs"
 import flow from "xml-flow"
 
 const xmlStream = flow(
   createReadStream(
-    "/Users/davidmoody/Downloads/apple_health_export/export.xml",
+    process.env.HOME + "/Downloads/apple_health_export/export.xml",
   ),
+  {
+    trim: false,
+    normalize: false,
+    simplifyNodes: false,
+  },
 )
 
-// xmlStream.on("tag:record", (x: any) => {
-//   if (x.$attrs?.type === "HKQuantityTypeIdentifierBodyMass") {
-//     const date = x.$attrs.startdate?.split(" ")[0]
-//     const value = parseFloat(x.$attrs.value)
-//     const unit = x.$attrs.unit
+const recordParsers: Record<string, {shortType: string; expectedUnit: string}> =
+  {
+    HKQuantityTypeIdentifierBodyMass: {
+      shortType: "bodyMassLb",
+      expectedUnit: "lb",
+    },
+    HKQuantityTypeIdentifierBodyFatPercentage: {
+      shortType: "bodyFat",
+      expectedUnit: "%",
+    },
+    HKQuantityTypeIdentifierLeanBodyMass: {
+      shortType: "leanBodyMassKg",
+      expectedUnit: "kg",
+    },
+    HKQuantityTypeIdentifierBodyMassIndex: {
+      shortType: "bodyMassIndex",
+      expectedUnit: "count",
+    },
 
-//     // TODO remove duplicates for some days where there are multiple measurements
-//     console.log(`${date} ${value.toFixed(1)}${unit}`)
-//   }
-// })
+    HKQuantityTypeIdentifierDietaryEnergyConsumed: {
+      shortType: "eatenCalories",
+      expectedUnit: "Cal",
+    },
+    HKQuantityTypeIdentifierDietaryProtein: {
+      shortType: "eatenProtein",
+      expectedUnit: "g",
+    },
+    HKQuantityTypeIdentifierDietarySugar: {
+      shortType: "eatenSugar",
+      expectedUnit: "g",
+    },
+    HKQuantityTypeIdentifierDietarySodium: {
+      shortType: "eatenSodium",
+      expectedUnit: "mg",
+    },
+    HKQuantityTypeIdentifierDietaryFatTotal: {
+      shortType: "eatenFat",
+      expectedUnit: "g",
+    },
+    HKQuantityTypeIdentifierDietaryFatSaturated: {
+      shortType: "eatenFatSaturated",
+      expectedUnit: "g",
+    },
+    HKQuantityTypeIdentifierDietaryCarbohydrates: {
+      shortType: "eatenCarbs",
+      expectedUnit: "g",
+    },
+    HKQuantityTypeIdentifierDietaryFiber: {
+      shortType: "eatenFiber",
+      expectedUnit: "g",
+    },
 
-xmlStream.on("tag:record", (x: any) => {
-  if (x.$attrs?.type === "HKQuantityTypeIdentifierDietaryEnergyConsumed") {
-    const date = x.$attrs.startdate?.split(" ")[0]
-    const value = parseFloat(x.$attrs.value)
-    // const unit = x.$attrs.unit
-
-    console.log(`${date} ${value}`)
+    HKQuantityTypeIdentifierActiveEnergyBurned: {
+      shortType: "energyBurnedActive",
+      expectedUnit: "Cal",
+    },
+    HKQuantityTypeIdentifierBasalEnergyBurned: {
+      shortType: "energyBurnedBase",
+      expectedUnit: "kcal",
+    },
+    HKQuantityTypeIdentifierStepCount: {
+      shortType: "stepCount",
+      expectedUnit: "count",
+    },
+    HKQuantityTypeIdentifierDistanceWalkingRunning: {
+      shortType: "distanceWalking",
+      expectedUnit: "mi",
+    },
+    HKQuantityTypeIdentifierDistanceCycling: {
+      shortType: "distanceCycling",
+      expectedUnit: "mi",
+    },
+    HKQuantityTypeIdentifierFlightsClimbed: {
+      shortType: "flightsClimbed",
+      expectedUnit: "count",
+    },
   }
+
+let recordTypeCounts: Record<string, number> = {}
+let lastRecordType: string | null = null
+
+const parsedRecords: Array<{type: string; date: string; value: number}> = []
+
+xmlStream.on("tag:record", (record: any) => {
+  const recordType: string = record.$attrs?.type ?? "NONE"
+  recordTypeCounts[recordType] = (recordTypeCounts[recordType] ?? 0) + 1
+  if (lastRecordType && lastRecordType !== recordType) {
+    console.log(
+      `Read ${recordTypeCounts[lastRecordType]} records of type "${lastRecordType}"`,
+    )
+  }
+  lastRecordType = recordType
+
+  const recordParser = recordParsers[recordType]
+  if (!recordParser) return
+
+  const date = record.$attrs.startdate?.split(" ")[0]
+  const value = parseFloat(record.$attrs.value)
+  const unit = record.$attrs.unit
+  if (unit !== recordParser.expectedUnit) {
+    throw new Error(
+      `Found unit type of "${unit}" but expected "${recordParser.expectedUnit}" when parsing ${recordParser.shortType} record`,
+    )
+  }
+  parsedRecords.push({type: recordParser.shortType, date, value})
+})
+
+xmlStream.on("end", () => {
+  const outputFile = __dirname + "/output.json"
+
+  writeFileSync(outputFile, JSON.stringify(parsedRecords, null, 2))
+
+  console.log(`Written ${parsedRecords.length} records to ${outputFile}`)
 })
