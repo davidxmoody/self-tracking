@@ -11,8 +11,11 @@ function getOneRepMax(weight: number, reps: number) {
 }
 
 const dataToIgnore: Record<string, string[]> = {
-  "2022-04-08": ["overhead"],
+  "2021-03-08": ["squat"],
+  "2021-03-09": ["bench"],
+  "2021-03-11": ["squat"],
   "2021-04-08": ["squat"],
+  "2022-04-08": ["overhead"],
 }
 
 const trackedExercises: Record<string, string> = {
