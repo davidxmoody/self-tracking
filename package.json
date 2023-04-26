@@ -10,6 +10,7 @@
     "@types/node": "^18.15.13",
     "@types/react": "^18.0.37",
     "@types/react-dom": "^18.0.11",
+    "@types/xml-flow": "^1.0.1",
     "csv-parse": "^5.3.8",
     "date-fns": "^2.29.3",
     "react": "^18.2.0",
@@ -18,7 +19,8 @@
     "recharts": "^2.5.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
-    "web-vitals": "^3.3.1"
+    "web-vitals": "^3.3.1",
+    "xml-flow": "^1.0.4"
   },
   "scripts": {
     "import": "mv ~/Downloads/strong.csv src/data/unformatted/strong.csv && npm run process",
@@ -48,5 +50,8 @@
   },
   "devDependencies": {
     "prettier": "^2.8.7"
+  },
+  "overrides": {
+    "typescript": "^5.0.4"
   }
 }
