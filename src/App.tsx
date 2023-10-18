@@ -19,6 +19,8 @@ const exercises = {
   squat: "blue",
   bench: "red",
   overhead: "orange",
+  weight: "purple",
+  bodyFat: "pink",
 }
 
 const yTickSize = 20

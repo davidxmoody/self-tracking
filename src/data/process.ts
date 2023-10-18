@@ -1,6 +1,7 @@
 import {parse} from "csv-parse/sync"
 import {readFileSync, writeFileSync} from "node:fs"
 import dateRange from "../helpers/dateRange"
+import appleHealthData from "../appleHealth/formattedOutput.json"
 
 const rawData = parse(readFileSync(__dirname + "/unformatted/strong.csv"), {
   columns: true,
@@ -16,6 +17,8 @@ const dataToIgnore: Record<string, string[]> = {
   "2021-03-11": ["squat"],
   "2021-04-08": ["squat"],
   "2022-04-08": ["overhead"],
+  "2023-05-09": ["deadlift", "bench"],
+  "2023-05-10": ["squat"],
 }
 
 const trackedExercises: Record<string, string> = {
@@ -84,7 +87,15 @@ const data = paddedDates.map((date) => {
     Object.values(bestSets).map((set) => [set.exercise, set.oneRepMax]),
   )
 
-  return {date, ...oneRepMaxes}
+  const weight: any = {}
+  if ((appleHealthData.bodyMassLb as any)[date]) {
+    weight.weight = (appleHealthData.bodyMassLb as any)[date] - 150
+  }
+  if ((appleHealthData.bodyFat as any)[date]) {
+    weight.bodyFat = ((appleHealthData.bodyFat as any)[date] * 100 - 10) * 2
+  }
+
+  return {date, ...oneRepMaxes, ...weight}
 })
 
 Object.values(trackedExercises).forEach((exercise) => {
