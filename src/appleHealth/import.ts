@@ -157,7 +157,7 @@ xmlStream.on("tag:record", (record: any) => {
     return
   }
 
-  const date = record.$attrs.startdate?.split(" ")[0]
+  const date = record.$attrs.enddate?.split(" ")[0]
   const value = parseFloat(record.$attrs.value)
   const unit = record.$attrs.unit
   if (unit !== recordParser.expectedUnit) {
