@@ -2,6 +2,8 @@ from os import environ, path
 import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 tree = ET.parse(path.expanduser("~/Downloads/apple_health_export/export.xml"))
 root = tree.getroot()
@@ -104,14 +106,49 @@ write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
 
 
-weights = pd.DataFrame(
+new_weights = pd.DataFrame(
     node.attrib
     for node in root.iterfind("./Record[@type='HKQuantityTypeIdentifierBodyMass']")
 ).sort_values("endDate")
-weights["date"] = pd.to_datetime(weights["endDate"].str.slice(0, 10))
-weights = weights[weights["sourceName"] == "Withings"]
-weights = weights.drop_duplicates(subset="date", keep="last").sort_values("date")
-if (weights["unit"] != "lb").any():
+new_weights["date"] = pd.to_datetime(new_weights["endDate"].str.slice(0, 10))
+new_weights = new_weights[new_weights["sourceName"] == "Withings"]
+new_weights = new_weights.drop_duplicates(subset="date", keep="last").sort_values(
+    "date"
+)
+if (new_weights["unit"] != "lb").any():
     raise Exception("Unexpected unit found")
-weights["weight"] = weights["value"].astype(float)
-weights = weights[["date", "weight"]].reset_index(drop=True)
+new_weights["weight"] = new_weights["value"].astype(float)
+new_weights = new_weights[["date", "weight"]].reset_index(drop=True)
+
+body_fat = pd.DataFrame(
+    node.attrib
+    for node in root.iterfind(
+        "./Record[@type='HKQuantityTypeIdentifierBodyFatPercentage']"
+    )
+).sort_values("endDate")
+body_fat["date"] = pd.to_datetime(body_fat["endDate"].str.slice(0, 10))
+body_fat = body_fat[body_fat["sourceName"] == "Withings"]
+body_fat = body_fat.drop_duplicates(subset="date", keep="last").sort_values("date")
+if (body_fat["unit"] != "%").any():
+    raise Exception("Unexpected unit found")
+body_fat["fat"] = body_fat["value"].astype(float)
+body_fat = body_fat[["date", "fat"]].reset_index(drop=True)
+
+new_weights = pd.merge(new_weights, body_fat, how="left")
+
+old_weights = pd.read_table(
+    diary_path("misc/2024-01-22-old-weights.tsv"), parse_dates=["date"]
+)
+
+weights = pd.concat([old_weights, new_weights]).dropna().reset_index(drop=True)
+
+weights["fat_weight"] = weights["weight"] * weights["fat"]
+
+sns.lineplot(
+    weights.melt("date", ["weight", "fat_weight"], "col"),
+    x="date",
+    y="value",
+    hue="col",
+)
+plt.ylim(0)
+plt.show(block=False)
