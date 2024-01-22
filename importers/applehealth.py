@@ -20,9 +20,14 @@ def parse_duration(node, expected_unit="min"):
 
 
 def parse_distance(node, expected_unit="mi"):
-    distance_node = node.find(
-        "*[@type='HKQuantityTypeIdentifierDistanceWalkingRunning']"
-    ) or node.find("*[@type='HKQuantityTypeIdentifierDistanceCycling']")
+    [distance_node] = [
+        n
+        for n in [
+            node.find("*[@type='HKQuantityTypeIdentifierDistanceWalkingRunning']"),
+            node.find("*[@type='HKQuantityTypeIdentifierDistanceCycling']"),
+        ]
+        if n is not None
+    ]
     if distance_node is None:
         return None
     if distance_node.attrib["unit"] != expected_unit:
@@ -42,15 +47,21 @@ def parse_indoor(node):
     return indoor_node.attrib["value"] == "1"
 
 
-running = pd.DataFrame(
-    {
-        "date": parse_date(node),
-        "duration": parse_duration(node),
-        "distance": parse_distance(node),
-        "calories": parse_calories(node),
-    }
-    for node in root.iterfind(
-        "./Workout[@workoutActivityType='HKWorkoutActivityTypeRunning']"
+def sum_by_date(df):
+    return df.groupby("date").agg("sum")
+
+
+running = sum_by_date(
+    pd.DataFrame(
+        {
+            "date": parse_date(node),
+            "calories": parse_calories(node),
+            "duration": parse_duration(node),
+            "distance": parse_distance(node),
+        }
+        for node in root.iterfind(
+            "./Workout[@workoutActivityType='HKWorkoutActivityTypeRunning']"
+        )
     )
 )
 
@@ -68,10 +79,10 @@ mixed_cycling = pd.DataFrame(
     )
 )
 
-indoor_cycling = mixed_cycling[mixed_cycling["indoor"] == True].drop(
-    ["distance", "indoor"], axis=1
+indoor_cycling = sum_by_date(
+    mixed_cycling[mixed_cycling["indoor"] == True].drop(["distance", "indoor"], axis=1)
 )
 
-outdoor_cycling = mixed_cycling[mixed_cycling["indoor"] == False].drop(
-    ["indoor"], axis=1
+outdoor_cycling = sum_by_date(
+    mixed_cycling[mixed_cycling["indoor"] == False].drop(["indoor"], axis=1)
 )
