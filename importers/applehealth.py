@@ -24,15 +24,8 @@ def parse_duration(node, expected_unit="min"):
     return float(node.attrib["duration"])
 
 
-def parse_distance(node, expected_unit="mi"):
-    [distance_node] = [
-        n
-        for n in [
-            node.find("*[@type='HKQuantityTypeIdentifierDistanceWalkingRunning']"),
-            node.find("*[@type='HKQuantityTypeIdentifierDistanceCycling']"),
-        ]
-        if n is not None
-    ]
+def parse_distance(node, name: str, expected_unit="mi"):
+    distance_node = node.find(f"*[@type='HKQuantityTypeIdentifierDistance{name}']")
     if distance_node is None:
         return None
     if distance_node.attrib["unit"] != expected_unit:
@@ -60,7 +53,7 @@ new_running = sum_by_date(
     pd.DataFrame(
         {
             "date": parse_date(node),
-            "distance": parse_distance(node),
+            "distance": parse_distance(node, "WalkingRunning"),
             "calories": parse_calories(node),
             "duration": parse_duration(node),
         }
@@ -87,7 +80,7 @@ mixed_cycling = pd.DataFrame(
         "date": parse_date(node),
         "calories": parse_calories(node),
         "duration": parse_duration(node),
-        "distance": parse_distance(node),
+        "distance": parse_distance(node, "Cycling"),
         "indoor": parse_indoor(node),
     }
     for node in root.iterfind(
@@ -103,4 +96,12 @@ outdoor_cycling = sum_by_date(
     mixed_cycling[mixed_cycling["indoor"] == False].drop(["indoor"], axis=1)
 )
 
-print(running.to_csv(sep="\t", index=False, float_format="%.2f"))
+
+def write_tsv(df: pd.DataFrame, name: str):
+    output_filename = diary_path("data", f"{name}.tsv")
+    df.to_csv(output_filename, sep="\t", index=False, float_format="%.2f")
+
+
+write_tsv(running, "running")
+write_tsv(indoor_cycling, "indoor-cycling")
+write_tsv(outdoor_cycling, "outdoor-cycling")
