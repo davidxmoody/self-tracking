@@ -6,9 +6,6 @@ import numpy as np
 tree = ET.parse(path.expanduser("~/Downloads/apple_health_export/export.xml"))
 root = tree.getroot()
 
-# Note: Cannot use root.iter() due to duplicate records in Correlation tags
-records = pd.DataFrame(x.attrib for x in root if x.tag == "Record")
-
 
 def diary_path(*parts: str):
     return path.join(environ["DIARY_DIR"], *parts)
@@ -60,7 +57,7 @@ new_running = sum_by_date(
         for node in root.iterfind(
             "./Workout[@workoutActivityType='HKWorkoutActivityTypeRunning']"
         )
-    ).astype({"calories": "Int64"})
+    )
 )
 
 
@@ -72,7 +69,7 @@ old_running = pd.DataFrame(
     )
 )
 
-running = pd.concat([old_running, new_running])
+running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
 
 mixed_cycling = pd.DataFrame(
@@ -105,3 +102,16 @@ def write_tsv(df: pd.DataFrame, name: str):
 write_tsv(running, "running")
 write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
+
+
+weights = pd.DataFrame(
+    node.attrib
+    for node in root.iterfind("./Record[@type='HKQuantityTypeIdentifierBodyMass']")
+).sort_values("endDate")
+weights["date"] = pd.to_datetime(weights["endDate"].str.slice(0, 10))
+weights = weights[weights["sourceName"] == "Withings"]
+weights = weights.drop_duplicates(subset="date", keep="last").sort_values("date")
+if (weights["unit"] != "lb").any():
+    raise Exception("Unexpected unit found")
+weights["weight"] = weights["value"].astype(float)
+weights = weights[["date", "weight"]].reset_index(drop=True)
