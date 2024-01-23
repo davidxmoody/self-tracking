@@ -1,3 +1,5 @@
+# %% Imports
+
 from os import environ, path
 import xml.etree.ElementTree as ET
 import pandas as pd
@@ -9,10 +11,16 @@ from glob import glob
 from zipfile import ZipFile
 import json
 
+
+# %% Load data
+
 filename = sorted(glob(path.expanduser("~/Downloads/????-??-??-apple-health.zip")))[-1]
 print(f"Reading from: '{filename}'")
 with ZipFile(filename) as zf:
     root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
+
+
+# %% Helpers
 
 
 def diary_path(*parts: str):
@@ -54,6 +62,8 @@ def sum_by_date(df):
     return df.groupby("date").agg("sum").reset_index()
 
 
+# %% Running data
+
 new_running = sum_by_date(
     pd.DataFrame(
         {
@@ -80,6 +90,8 @@ old_running = pd.DataFrame(
 running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
 
+# %% Cycling data
+
 mixed_cycling = pd.DataFrame(
     {
         "date": parse_date(node),
@@ -102,25 +114,7 @@ outdoor_cycling = sum_by_date(
 )
 
 
-def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
-    df = df.apply(
-        lambda r: {
-            k: (
-                format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v
-            )
-            for k, v in r.items()
-        },
-        axis=1,
-        result_type="expand",
-    )
-    output_filename = diary_path("data", f"{name}.tsv")
-    df.to_csv(output_filename, sep="\t", index=False, float_format="%.2f")
-
-
-write_tsv(running, "running")
-write_tsv(indoor_cycling, "indoor-cycling")
-write_tsv(outdoor_cycling, "outdoor-cycling")
-
+# %% Weight data
 
 new_weights = pd.DataFrame(
     node.attrib
@@ -158,8 +152,6 @@ old_weights = pd.read_table(
 
 weights = pd.concat([old_weights, new_weights]).reset_index(drop=True)
 
-write_tsv(weights, "weight", {"weight": 2, "fat": 3})
-
 # weights["fat_weight"] = weights["weight"] * weights["fat"]
 
 # sns.lineplot(
@@ -170,3 +162,26 @@ write_tsv(weights, "weight", {"weight": 2, "fat": 3})
 # )
 # plt.ylim(0)
 # plt.show(block=False)
+
+# %% Write TSV files
+
+
+def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
+    df = df.apply(
+        lambda r: {
+            k: (
+                format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v
+            )
+            for k, v in r.items()
+        },
+        axis=1,
+        result_type="expand",
+    )
+    output_filename = diary_path("data", f"{name}.tsv")
+    df.to_csv(output_filename, sep="\t", index=False, float_format="%.2f")
+
+
+write_tsv(running, "running")
+write_tsv(indoor_cycling, "indoor-cycling")
+write_tsv(outdoor_cycling, "outdoor-cycling")
+write_tsv(weights, "weight", {"weight": 2, "fat": 3})
