@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from math import isnan
 
 tree = ET.parse(path.expanduser("~/Downloads/apple_health_export/export.xml"))
 root = tree.getroot()
@@ -96,7 +97,15 @@ outdoor_cycling = sum_by_date(
 )
 
 
-def write_tsv(df: pd.DataFrame, name: str):
+def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
+    df = df.apply(
+        lambda r: {
+            k: (format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v)
+            for k, v in r.items()
+        },
+        axis=1,
+        result_type="expand",
+    )
     output_filename = diary_path("data", f"{name}.tsv")
     df.to_csv(output_filename, sep="\t", index=False, float_format="%.2f")
 
@@ -140,15 +149,17 @@ old_weights = pd.read_table(
     diary_path("misc/2024-01-22-old-weights.tsv"), parse_dates=["date"]
 )
 
-weights = pd.concat([old_weights, new_weights]).dropna().reset_index(drop=True)
+weights = pd.concat([old_weights, new_weights]).reset_index(drop=True)
 
-weights["fat_weight"] = weights["weight"] * weights["fat"]
+write_tsv(weights, "weight", {"weight": 2, "fat": 3})
 
-sns.lineplot(
-    weights.melt("date", ["weight", "fat_weight"], "col"),
-    x="date",
-    y="value",
-    hue="col",
-)
-plt.ylim(0)
-plt.show(block=False)
+# weights["fat_weight"] = weights["weight"] * weights["fat"]
+
+# sns.lineplot(
+#     weights.melt("date", ["weight", "fat_weight"], "col"),
+#     x="date",
+#     y="value",
+#     hue="col",
+# )
+# plt.ylim(0)
+# plt.show(block=False)
