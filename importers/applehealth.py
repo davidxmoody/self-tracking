@@ -5,9 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from math import isnan
+from glob import glob
+from zipfile import ZipFile
+import json
 
-tree = ET.parse(path.expanduser("~/Downloads/apple_health_export/export.xml"))
-root = tree.getroot()
+filename = sorted(glob(path.expanduser("~/Downloads/????-??-??-apple-health.zip")))[-1]
+print(f"Reading from: '{filename}'")
+with ZipFile(filename) as zf:
+    root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
 
 
 def diary_path(*parts: str):
@@ -100,7 +105,9 @@ outdoor_cycling = sum_by_date(
 def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
     df = df.apply(
         lambda r: {
-            k: (format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v)
+            k: (
+                format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v
+            )
             for k, v in r.items()
         },
         axis=1,
