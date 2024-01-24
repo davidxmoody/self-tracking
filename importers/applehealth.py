@@ -62,6 +62,20 @@ def sum_by_date(df):
     return df.groupby("date").agg("sum").reset_index()
 
 
+def gather_records(rtype: str, unit: str, sources: list[str], vtype=float, agg="sum"):
+    df = pd.DataFrame(
+        {
+            "date": node.attrib["endDate"][0:10],
+            "value": vtype(node.attrib["value"]),
+        }
+        for node in root.iterfind(f"./Record[@type='{rtype}']")
+        if node.attrib["sourceName"] in sources and node.attrib["unit"] == unit
+    )
+    series = df.groupby("date").agg(agg)["value"]
+    series.index = pd.to_datetime(series.index)
+    return series
+
+
 # %% Running data
 
 new_running = sum_by_date(
@@ -116,52 +130,41 @@ outdoor_cycling = sum_by_date(
 
 # %% Weight data
 
-new_weights = pd.DataFrame(
-    node.attrib
-    for node in root.iterfind("./Record[@type='HKQuantityTypeIdentifierBodyMass']")
-).sort_values("endDate")
-new_weights["date"] = pd.to_datetime(new_weights["endDate"].str.slice(0, 10))
-new_weights = new_weights[new_weights["sourceName"] == "Withings"]
-new_weights = new_weights.drop_duplicates(subset="date", keep="last").sort_values(
-    "date"
-)
-if (new_weights["unit"] != "lb").any():
-    raise Exception("Unexpected unit found")
-new_weights["weight"] = new_weights["value"].astype(float)
-new_weights = new_weights[["date", "weight"]].reset_index(drop=True)
-
-body_fat = pd.DataFrame(
-    node.attrib
-    for node in root.iterfind(
-        "./Record[@type='HKQuantityTypeIdentifierBodyFatPercentage']"
-    )
-).sort_values("endDate")
-body_fat["date"] = pd.to_datetime(body_fat["endDate"].str.slice(0, 10))
-body_fat = body_fat[body_fat["sourceName"] == "Withings"]
-body_fat = body_fat.drop_duplicates(subset="date", keep="last").sort_values("date")
-if (body_fat["unit"] != "%").any():
-    raise Exception("Unexpected unit found")
-body_fat["fat"] = body_fat["value"].astype(float)
-body_fat = body_fat[["date", "fat"]].reset_index(drop=True)
-
-new_weights = pd.merge(new_weights, body_fat, how="left")
-
-old_weights = pd.read_table(
-    diary_path("misc/2024-01-22-old-weights.tsv"), parse_dates=["date"]
+new_weight_data = pd.concat(
+    {
+        "weight": gather_records(
+            "HKQuantityTypeIdentifierBodyMass", "lb", ["Withings"], agg="min"
+        ),
+        "fat": gather_records(
+            "HKQuantityTypeIdentifierBodyFatPercentage", "%", ["Withings"], agg="min"
+        ),
+    },
+    axis=1,
 )
 
-weights = pd.concat([old_weights, new_weights]).reset_index(drop=True)
+old_weight_data = pd.read_table(
+    diary_path("misc/2024-01-22-old-weights.tsv"),
+    parse_dates=["date"],
+    index_col="date",
+)
 
-# weights["fat_weight"] = weights["weight"] * weights["fat"]
+weight_data = pd.concat([old_weight_data, new_weight_data])
 
-# sns.lineplot(
-#     weights.melt("date", ["weight", "fat_weight"], "col"),
-#     x="date",
-#     y="value",
-#     hue="col",
-# )
-# plt.ylim(0)
-# plt.show(block=False)
+# %% Weight graph
+
+w = weight_data.dropna()
+w["fat_weight"] = w["weight"] * w["fat"]
+w = w.reset_index().melt("date", ["weight", "fat_weight"])
+
+sns.lineplot(
+    w,
+    x="date",
+    y="value",
+    hue="variable",
+)
+plt.ylim(0)
+plt.show(block=False)
+
 
 # %% Write TSV files
 
@@ -184,4 +187,4 @@ def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
 write_tsv(running, "running")
 write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
-write_tsv(weights, "weight", {"weight": 2, "fat": 3})
+write_tsv(weight_data.reset_index(), "weight", {"weight": 2, "fat": 3})
