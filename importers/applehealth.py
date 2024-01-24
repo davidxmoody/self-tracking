@@ -78,6 +78,7 @@ def gather_records(rtype: str, unit: str, sources: list[str], vtype=float, agg="
 
 # %% Running data
 
+
 new_running = sum_by_date(
     pd.DataFrame(
         {
@@ -128,6 +129,31 @@ outdoor_cycling = sum_by_date(
 )
 
 
+# %% Activity data
+
+apple_watch = "David’s Apple\xa0Watch"
+
+activity_data = pd.concat(
+    {
+        "active_calories": gather_records(
+            "HKQuantityTypeIdentifierActiveEnergyBurned",
+            "Cal",
+            [apple_watch],
+            agg="sum",
+        ),
+        "basal_calories": gather_records(
+            "HKQuantityTypeIdentifierBasalEnergyBurned",
+            "kcal",
+            [apple_watch],
+            agg="sum",
+        ),
+    },
+    axis=1,
+)
+
+activity_data = activity_data["2017-12-16":].round(0).astype(int)
+
+
 # %% Weight data
 
 new_weight_data = pd.concat(
@@ -149,6 +175,7 @@ old_weight_data = pd.read_table(
 )
 
 weight_data = pd.concat([old_weight_data, new_weight_data])
+
 
 # %% Weight graph
 
@@ -188,3 +215,4 @@ write_tsv(running, "running")
 write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
 write_tsv(weight_data.reset_index(), "weight", {"weight": 2, "fat": 3})
+write_tsv(activity_data.reset_index(), "activity")
