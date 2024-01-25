@@ -136,19 +136,58 @@ activity_data = pd.concat(
             "HKQuantityTypeIdentifierActiveEnergyBurned",
             "Cal",
             [apple_watch],
-            agg="sum",
         ),
         "basal_calories": gather_records(
             "HKQuantityTypeIdentifierBasalEnergyBurned",
             "kcal",
             [apple_watch],
-            agg="sum",
         ),
     },
     axis=1,
 )
 
 activity_data = cast(pd.DataFrame, activity_data["2017-12-16":].round(0).astype(int))
+
+
+# %% Diet data
+
+diet_sources = ["Calorie Counter", "YAZIO"]
+
+diet_data = pd.concat(
+    {
+        "calories": gather_records(
+            "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+            "Cal",
+            diet_sources,
+        ),
+        "protein": gather_records(
+            "HKQuantityTypeIdentifierDietaryProtein",
+            "g",
+            diet_sources,
+        ),
+        "fat": gather_records(
+            "HKQuantityTypeIdentifierDietaryFatTotal",
+            "g",
+            diet_sources,
+        ),
+        "carbs": gather_records(
+            "HKQuantityTypeIdentifierDietaryCarbohydrates",
+            "g",
+            diet_sources,
+        ),
+        "sugar": gather_records(
+            "HKQuantityTypeIdentifierDietarySugar",
+            "g",
+            diet_sources,
+        ),
+        "fiber": gather_records(
+            "HKQuantityTypeIdentifierDietaryFiber",
+            "g",
+            diet_sources,
+        ),
+    },
+    axis=1,
+).astype(int)
 
 
 # %% Weight data
@@ -209,3 +248,4 @@ write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
 write_tsv(weight_data, "weight", {"fat": 3})
 write_tsv(activity_data, "activity")
+write_tsv(diet_data, "diet")
