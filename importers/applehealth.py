@@ -128,12 +128,14 @@ outdoor_cycling = sum_by_date(
 
 # %% Activity data
 
-apple_watch = "David’s Apple\xa0Watch"
+activity_sources = ["David’s Apple\xa0Watch"]
 
 activity_data = pd.concat(
     {
-        "active_calories": gather_records("ActiveEnergyBurned", "Cal", [apple_watch]),
-        "basal_calories": gather_records("BasalEnergyBurned", "kcal", [apple_watch]),
+        "active_calories": gather_records(
+            "ActiveEnergyBurned", "Cal", activity_sources
+        ),
+        "basal_calories": gather_records("BasalEnergyBurned", "kcal", activity_sources),
     },
     axis=1,
 )
@@ -160,10 +162,12 @@ diet_data = pd.concat(
 
 # %% Weight data
 
+weight_sources = ["Withings"]
+
 new_weight_data = pd.concat(
     {
-        "weight": gather_records("BodyMass", "lb", ["Withings"], agg="min"),
-        "fat": gather_records("BodyFatPercentage", "%", ["Withings"], agg="min"),
+        "weight": gather_records("BodyMass", "lb", weight_sources, agg="min"),
+        "fat": gather_records("BodyFatPercentage", "%", weight_sources, agg="min"),
     },
     axis=1,
 )
