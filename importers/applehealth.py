@@ -75,6 +75,10 @@ def gather_records(rtype: str, unit: str, sources: list[str], agg="sum"):
     return series
 
 
+def read_table_with_date_index(filename: str):
+    return pd.read_table(filename, parse_dates=["date"], index_col="date")
+
+
 # %% Running data
 
 
@@ -92,12 +96,7 @@ new_running = sum_by_date(
     )
 )
 
-
-old_running = pd.read_table(
-    diary_path("misc/2024-01-25-old-running.tsv"),
-    parse_dates=["date"],
-    index_col="date",
-)
+old_running = read_table_with_date_index(diary_path("misc/2024-01-25-old-running.tsv"))
 
 running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
@@ -172,10 +171,8 @@ new_weight_data = pd.concat(
     axis=1,
 )
 
-old_weight_data = pd.read_table(
-    diary_path("misc/2024-01-22-old-weights.tsv"),
-    parse_dates=["date"],
-    index_col="date",
+old_weight_data = read_table_with_date_index(
+    diary_path("misc/2024-01-22-old-weights.tsv")
 )
 
 weight_data = pd.concat([old_weight_data, new_weight_data])
