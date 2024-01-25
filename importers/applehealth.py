@@ -61,13 +61,13 @@ def sum_by_date(df):
     return cast(pd.DataFrame, df.groupby("date").agg("sum"))
 
 
-def gather_records(rtype: str, unit: str, sources: list[str], vtype=float, agg="sum"):
+def gather_records(rtype: str, unit: str, sources: list[str], agg="sum"):
     df = pd.DataFrame(
         {
             "date": node.attrib["endDate"][0:10],
-            "value": vtype(node.attrib["value"]),
+            "value": float(node.attrib["value"]),
         }
-        for node in root.iterfind(f"./Record[@type='{rtype}']")
+        for node in root.iterfind(f"./Record[@type='HKQuantityTypeIdentifier{rtype}']")
         if node.attrib["sourceName"] in sources and node.attrib["unit"] == unit
     )
     series = cast(pd.Series, df.groupby("date").agg(agg)["value"])
@@ -132,16 +132,8 @@ apple_watch = "David’s Apple\xa0Watch"
 
 activity_data = pd.concat(
     {
-        "active_calories": gather_records(
-            "HKQuantityTypeIdentifierActiveEnergyBurned",
-            "Cal",
-            [apple_watch],
-        ),
-        "basal_calories": gather_records(
-            "HKQuantityTypeIdentifierBasalEnergyBurned",
-            "kcal",
-            [apple_watch],
-        ),
+        "active_calories": gather_records("ActiveEnergyBurned", "Cal", [apple_watch]),
+        "basal_calories": gather_records("BasalEnergyBurned", "kcal", [apple_watch]),
     },
     axis=1,
 )
@@ -155,36 +147,12 @@ diet_sources = ["Calorie Counter", "YAZIO"]
 
 diet_data = pd.concat(
     {
-        "calories": gather_records(
-            "HKQuantityTypeIdentifierDietaryEnergyConsumed",
-            "Cal",
-            diet_sources,
-        ),
-        "protein": gather_records(
-            "HKQuantityTypeIdentifierDietaryProtein",
-            "g",
-            diet_sources,
-        ),
-        "fat": gather_records(
-            "HKQuantityTypeIdentifierDietaryFatTotal",
-            "g",
-            diet_sources,
-        ),
-        "carbs": gather_records(
-            "HKQuantityTypeIdentifierDietaryCarbohydrates",
-            "g",
-            diet_sources,
-        ),
-        "sugar": gather_records(
-            "HKQuantityTypeIdentifierDietarySugar",
-            "g",
-            diet_sources,
-        ),
-        "fiber": gather_records(
-            "HKQuantityTypeIdentifierDietaryFiber",
-            "g",
-            diet_sources,
-        ),
+        "calories": gather_records("DietaryEnergyConsumed", "Cal", diet_sources),
+        "protein": gather_records("DietaryProtein", "g", diet_sources),
+        "fat": gather_records("DietaryFatTotal", "g", diet_sources),
+        "carbs": gather_records("DietaryCarbohydrates", "g", diet_sources),
+        "sugar": gather_records("DietarySugar", "g", diet_sources),
+        "fiber": gather_records("DietaryFiber", "g", diet_sources),
     },
     axis=1,
 ).astype(int)
@@ -194,12 +162,8 @@ diet_data = pd.concat(
 
 new_weight_data = pd.concat(
     {
-        "weight": gather_records(
-            "HKQuantityTypeIdentifierBodyMass", "lb", ["Withings"], agg="min"
-        ),
-        "fat": gather_records(
-            "HKQuantityTypeIdentifierBodyFatPercentage", "%", ["Withings"], agg="min"
-        ),
+        "weight": gather_records("BodyMass", "lb", ["Withings"], agg="min"),
+        "fat": gather_records("BodyFatPercentage", "%", ["Withings"], agg="min"),
     },
     axis=1,
 )
