@@ -1,9 +1,9 @@
 # %% Imports
 
+from typing import cast
 from os import environ, path
 import xml.etree.ElementTree as ET
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from math import isnan
@@ -28,7 +28,7 @@ def diary_path(*parts: str):
 
 
 def parse_date(node):
-    return node.attrib["endDate"][0:10]
+    return pd.to_datetime(node.attrib["endDate"][0:10])
 
 
 def parse_duration(node, expected_unit="min"):
@@ -59,7 +59,7 @@ def parse_indoor(node):
 
 
 def sum_by_date(df):
-    return df.groupby("date").agg("sum").reset_index()
+    return cast(pd.DataFrame, df.groupby("date").agg("sum"))
 
 
 def gather_records(rtype: str, unit: str, sources: list[str], vtype=float, agg="sum"):
@@ -71,7 +71,7 @@ def gather_records(rtype: str, unit: str, sources: list[str], vtype=float, agg="
         for node in root.iterfind(f"./Record[@type='{rtype}']")
         if node.attrib["sourceName"] in sources and node.attrib["unit"] == unit
     )
-    series = df.groupby("date").agg(agg)["value"]
+    series = cast(pd.Series, df.groupby("date").agg(agg)["value"])
     series.index = pd.to_datetime(series.index)
     return series
 
@@ -94,13 +94,14 @@ new_running = sum_by_date(
 )
 
 
+# TODO change this old format to a TSV and use consistent location for "old data"
 old_running_json = json.load(open(diary_path("misc/2017-12-14-running-data.json")))
 old_running = pd.DataFrame(
     (
-        {"date": date, "distance": distance}
+        {"date": pd.to_datetime(date), "distance": distance}
         for date, distance in old_running_json.items()
     )
-)
+).set_index("date")
 
 running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
@@ -151,7 +152,7 @@ activity_data = pd.concat(
     axis=1,
 )
 
-activity_data = activity_data["2017-12-16":].round(0).astype(int)
+activity_data = cast(pd.DataFrame, activity_data["2017-12-16":].round(0).astype(int))
 
 
 # %% Weight data
@@ -196,23 +197,19 @@ plt.show(block=False)
 # %% Write TSV files
 
 
-def write_tsv(df: pd.DataFrame, name: str, precision: dict[str, int] = {}):
-    df = df.apply(
-        lambda r: {
-            k: (
-                format(v, f".{precision[k]}f") if k in precision and not isnan(v) else v
-            )
-            for k, v in r.items()
-        },
-        axis=1,
-        result_type="expand",
-    )
+def write_tsv(df: pd.DataFrame, name: str, precisions: dict[str, int] = {}):
+    df = df.copy()
+    for col, p in precisions.items():
+        df[col] = df[col].apply(
+            lambda v: "" if isnan(float(v)) else format(float(v), f".{p}f")
+        )
+
     output_filename = diary_path("data", f"{name}.tsv")
-    df.to_csv(output_filename, sep="\t", index=False, float_format="%.2f")
+    df.to_csv(output_filename, sep="\t", float_format="%.2f")
 
 
 write_tsv(running, "running")
 write_tsv(indoor_cycling, "indoor-cycling")
 write_tsv(outdoor_cycling, "outdoor-cycling")
-write_tsv(weight_data.reset_index(), "weight", {"weight": 2, "fat": 3})
-write_tsv(activity_data.reset_index(), "activity")
+write_tsv(weight_data, "weight", {"fat": 3})
+write_tsv(activity_data, "activity")
