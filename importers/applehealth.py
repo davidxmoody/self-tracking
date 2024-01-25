@@ -194,6 +194,28 @@ plt.ylim(0)
 plt.show(block=False)
 
 
+# %% Meditation data
+
+
+def parse_mindful_minutes(node):
+    start = pd.to_datetime(node.attrib["startDate"])
+    end = pd.to_datetime(node.attrib["endDate"])
+    return round((end - start).total_seconds() / 60)
+
+
+meditation_data = sum_by_date(
+    pd.DataFrame(
+        {
+            "date": parse_date(node),
+            "mindful_minutes": parse_mindful_minutes(node),
+        }
+        for node in root.iterfind(
+            "./Record[@type='HKCategoryTypeIdentifierMindfulSession']"
+        )
+    )
+)
+
+
 # %% Write TSV files
 
 
@@ -214,3 +236,4 @@ write_tsv(outdoor_cycling, "outdoor-cycling")
 write_tsv(weight_data, "weight", {"fat": 3})
 write_tsv(activity_data, "activity")
 write_tsv(diet_data, "diet")
+write_tsv(meditation_data, "meditation")
