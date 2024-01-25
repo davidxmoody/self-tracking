@@ -9,7 +9,6 @@ import seaborn as sns
 from math import isnan
 from glob import glob
 from zipfile import ZipFile
-import json
 
 
 # %% Load data
@@ -94,14 +93,11 @@ new_running = sum_by_date(
 )
 
 
-# TODO change this old format to a TSV and use consistent location for "old data"
-old_running_json = json.load(open(diary_path("misc/2017-12-14-running-data.json")))
-old_running = pd.DataFrame(
-    (
-        {"date": pd.to_datetime(date), "distance": distance}
-        for date, distance in old_running_json.items()
-    )
-).set_index("date")
+old_running = pd.read_table(
+    diary_path("misc/2024-01-25-old-running.tsv"),
+    parse_dates=["date"],
+    index_col="date",
+)
 
 running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
