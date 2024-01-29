@@ -9,12 +9,12 @@ import seaborn as sns
 from math import isnan
 from glob import glob
 from zipfile import ZipFile
+import calmap
 
 
 # %% Load data
 
 filename = sorted(glob(path.expanduser("~/Downloads/????-??-??-apple-health.zip")))[-1]
-print(f"Reading from: '{filename}'")
 with ZipFile(filename) as zf:
     root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
 
@@ -237,3 +237,32 @@ write_tsv(weight_data, "weight", {"fat": 3})
 write_tsv(activity_data, "activity")
 write_tsv(diet_data, "diet")
 write_tsv(meditation_data, "meditation")
+
+
+# %% Calendar vis
+
+
+calmap.calendarplot(
+    (
+        diet_data["calories"]
+        - activity_data["active_calories"]
+        - activity_data["basal_calories"]
+    ).dropna().iloc[:-1],
+    daylabels="MTWTFSS",
+    dayticks=[0, 2, 4, 6],
+    cmap="seismic",
+    vmin=-1500,
+    vmax=1500,
+)
+plt.show(block=False)
+
+fig, ax = calmap.calendarplot(
+    running["distance"]["2024":],
+    dayticks=[],
+    vmin=-2,
+    vmax=10,
+)
+man = plt.get_current_fig_manager()
+if man:
+    man.set_window_title("Running")
+plt.show(block=False)
