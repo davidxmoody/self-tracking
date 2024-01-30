@@ -1,15 +1,13 @@
 # %% Imports
 
-from typing import cast
-from os import environ, path
-import xml.etree.ElementTree as ET
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from math import isnan
 from glob import glob
+from math import isnan
+from os import environ, path
+from typing import cast
+import xml.etree.ElementTree as ET
 from zipfile import ZipFile
-import calmap
+
+import pandas as pd
 
 
 # %% Load data
@@ -80,7 +78,6 @@ def read_table_with_date_index(filename: str):
 
 
 # %% Running data
-
 
 new_running = sum_by_date(
     pd.DataFrame(
@@ -178,22 +175,6 @@ old_weight_data = read_table_with_date_index(
 weight_data = pd.concat([old_weight_data, new_weight_data])
 
 
-# %% Weight graph
-
-w = weight_data.dropna()
-w["fat_weight"] = w["weight"] * w["fat"]
-w = w.reset_index().melt("date", ["weight", "fat_weight"])
-
-sns.lineplot(
-    w,
-    x="date",
-    y="value",
-    hue="variable",
-)
-plt.ylim(0)
-plt.show(block=False)
-
-
 # %% Meditation data
 
 
@@ -237,32 +218,3 @@ write_tsv(weight_data, "weight", {"fat": 3})
 write_tsv(activity_data, "activity")
 write_tsv(diet_data, "diet")
 write_tsv(meditation_data, "meditation")
-
-
-# %% Calendar vis
-
-
-calmap.calendarplot(
-    (
-        diet_data["calories"]
-        - activity_data["active_calories"]
-        - activity_data["basal_calories"]
-    ).dropna().iloc[:-1],
-    daylabels="MTWTFSS",
-    dayticks=[0, 2, 4, 6],
-    cmap="seismic",
-    vmin=-1500,
-    vmax=1500,
-)
-plt.show(block=False)
-
-fig, ax = calmap.calendarplot(
-    running["distance"]["2024":],
-    dayticks=[],
-    vmin=-2,
-    vmax=10,
-)
-man = plt.get_current_fig_manager()
-if man:
-    man.set_window_title("Running")
-plt.show(block=False)
