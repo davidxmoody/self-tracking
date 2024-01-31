@@ -1,21 +1,23 @@
 # %% Imports
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import requests
-from icalendar import Calendar
-import calmap
 from os import environ
+
 from dotenv import load_dotenv
+from icalendar import Calendar
+import pandas as pd
+import requests
 
 load_dotenv()
 
 
-# %% Fetch data
+# %% Fetch
 
 req = requests.get(environ["ATRACKER_URL"])
 
 cal = Calendar.from_ical(req.text)
+
+
+# %% Clean
 
 df = pd.DataFrame(
     (
@@ -26,39 +28,15 @@ df = pd.DataFrame(
         }
         for e in cal.walk("VEVENT")
     )
-)
+).sort_values("start")
 
-
-# %% Clean data
+df["duration"] = (df["end"] - df["start"]).dt.total_seconds().astype(int)
 
 df.loc[df["category"] == "side project", "category"] = "project"
 
-df = df.sort_values("start")
-df["duration"] = df["end"] - df["start"]
-df["date"] = pd.to_datetime(df["end"].dt.date)
+df = df[["start", "duration", "category"]]
 
 
-# %% Analyse data
+# %% Write
 
-daily = (
-    df.groupby(["date", "category"])["duration"]
-    .sum()
-    .reset_index()
-    .sort_values(["date", "duration"], ascending=[True, False])
-    .reset_index(drop=True)
-)
-
-cat = "project"
-
-calmap.calendarplot(
-    daily.loc[daily["category"] == cat]
-    .set_index("date")["duration"]
-    .dt.total_seconds(),
-    daylabels="MTWTFSS",
-    dayticks=[0, 2, 4, 6],
-    vmin=0,
-)
-man = plt.get_current_fig_manager()
-if man:
-    man.set_window_title(cat)
-plt.show(block=False)
+df.to_csv(f"{environ['DIARY_DIR']}/data/atracker.tsv", sep="\t", index=False)
