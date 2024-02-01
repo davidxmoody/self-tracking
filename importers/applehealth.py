@@ -1,5 +1,6 @@
 # %% Imports
 
+from datetime import date, timedelta
 from glob import glob
 from math import isnan
 from os import environ, path
@@ -15,6 +16,12 @@ import pandas as pd
 filename = sorted(glob(path.expanduser("~/Downloads/????-??-??-apple-health.zip")))[-1]
 with ZipFile(filename) as zf:
     root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
+
+export_date_node = root.find("./ExportDate")
+if export_date_node is None:
+    raise Exception("Could not find export date")
+export_date = date.fromisoformat(export_date_node.attrib["value"][0:10])
+last_full_day = export_date - timedelta(days=1)
 
 
 # %% Helpers
@@ -136,12 +143,12 @@ activity_data = pd.concat(
     axis=1,
 )
 
-activity_data = cast(pd.DataFrame, activity_data["2017-12-16":].round(0).astype(int))
+activity_data = activity_data.loc["2017-12-16":last_full_day].round(0).astype(int)
 
 
 # %% Diet data
 
-diet_sources = ["Calorie Counter", "YAZIO"]
+diet_sources = ["Calorie Counter", "YAZIO", "MyNetDiary"]
 
 diet_data = pd.concat(
     {
@@ -154,6 +161,8 @@ diet_data = pd.concat(
     },
     axis=1,
 ).astype(int)
+
+diet_data = diet_data.loc[:last_full_day]
 
 
 # %% Weight data
