@@ -1,5 +1,6 @@
 # %% Imports
 
+from datetime import date
 from os.path import expandvars
 
 import numpy as np
@@ -21,15 +22,15 @@ def parse_duration(value: str):
 
 # %% Load data
 
-df = pd.read_csv(expandvars("$HOME/Downloads/strong.csv"))
+df = pd.read_csv(expandvars("$HOME/Downloads/strong.csv"), parse_dates=["Date"])
 
 df = pd.DataFrame(
     {
-        "datetime": pd.to_datetime(df.Date),
-        "workout_name": df["Workout Name"],
-        "duration_minutes": df.Duration.apply(parse_duration),
-        "exercise_name": df["Exercise Name"],
-        "set_order": df["Set Order"],
+        "date": df.Date.dt.date,
+        "time": df.Date.dt.time,
+        "title": df["Workout Name"],
+        "duration": df.Duration.apply(parse_duration),
+        "exercise": df["Exercise Name"],
         "weight": df.Weight.replace(0, np.nan),
         "reps": df.Reps.replace(0, np.nan),
         "seconds": df.Seconds.replace(0, np.nan),
@@ -38,9 +39,9 @@ df = pd.DataFrame(
 
 # Fix period where I thought old barbell was heavier than it actually was
 df.loc[
-    (df.datetime >= "2020-10-30")
-    & (df.datetime < "2022-03-11")
-    & (df.exercise_name.str.contains("Barbell")),
+    (df.date >= date(2020, 10, 30))
+    & (df.date < date(2022, 3, 11))
+    & (df.exercise.str.contains("Barbell")),
     "weight",
 ] -= 2.5
 
