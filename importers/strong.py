@@ -30,7 +30,7 @@ def get_program(d):
     if d >= date(2020, 9, 23):
         return "PPL"
     if d >= date(2020, 6, 28):
-        return "Beginner"
+        return "Noob"
 
 
 # %% Load data

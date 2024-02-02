@@ -1,5 +1,7 @@
 # %% Imports
 
+from datetime import timedelta
+from math import ceil
 from os.path import expandvars
 
 import matplotlib.pyplot as plt
@@ -11,11 +13,21 @@ import seaborn as sns
 
 df = pd.read_table(expandvars("$DIARY_DIR/data/strength.tsv"), parse_dates=["date"])
 
+programs = (
+    df.drop_duplicates("date")
+    .groupby("program")
+    .agg({"date": ["first", "size"]})
+    .reset_index()
+)
+programs.columns = ["name", "start", "num"]
+programs = programs.sort_values("start").reset_index(drop=True)
+programs["end"] = programs.start.shift(-1)
+
 tracked_exercises = {
-    "Deadlift (Barbell)": "deadlift",
-    "Squat (Barbell)": "squat",
-    "Bench Press (Barbell)": "bench",
-    "Overhead Press (Barbell)": "overhead",
+    "Deadlift (Barbell)": "Deadlift",
+    "Squat (Barbell)": "Squat",
+    "Bench Press (Barbell)": "Bench",
+    "Overhead Press (Barbell)": "Overhead",
 }
 
 df = df.loc[
@@ -42,17 +54,17 @@ dfl = (
     dfl.set_index(["date", "exercise"])
     .drop(
         [
-            ("2021-03-08", "squat"),
-            ("2021-03-09", "bench"),
-            ("2021-03-11", "squat"),
-            ("2021-04-01", "squat"),
-            ("2021-04-08", "squat"),
-            ("2021-04-17", "squat"),
-            ("2021-06-04", "squat"),
-            ("2022-04-08", "overhead"),
-            ("2023-05-09", "bench"),
-            ("2023-05-09", "deadlift"),
-            ("2023-05-10", "squat"),
+            ("2021-03-08", "Squat"),
+            ("2021-03-09", "Bench"),
+            ("2021-03-11", "Squat"),
+            ("2021-04-01", "Squat"),
+            ("2021-04-08", "Squat"),
+            ("2021-04-17", "Squat"),
+            ("2021-06-04", "Squat"),
+            ("2022-04-08", "Overhead"),
+            ("2023-05-09", "Bench"),
+            ("2023-05-09", "Deadlift"),
+            ("2023-05-10", "Squat"),
         ]
     )
     .reset_index()
@@ -64,6 +76,58 @@ dfl = (
 plt.ion()
 plt.clf()
 
-sns.lineplot(dfl, x="date", y="onerepmax", hue="exercise", marker="o")
+sns.lineplot(
+    dfl,
+    x="date",
+    y="onerepmax",
+    hue="exercise",
+    hue_order=tracked_exercises.values(),
+    marker="o",
+)
+
+top_edge = ceil(dfl.onerepmax.max() / 20) * 20 + 20
+left_edge = programs.iloc[0].start
+right_edge = dfl.iloc[-1].date + timedelta(days=90)
+
+plt.ylim(bottom=0, top=top_edge)
+plt.xlim(left=left_edge, right=right_edge)
+
+for name, start, num, end in programs.values:
+    xmiddle = start + ((right_edge if pd.isnull(end) else end) - start) / 2
+
+    duration = (dfl.iloc[-1].date if pd.isnull(end) else end) - start
+    months = f"{round(duration.days / 30)}{'+' if pd.isnull(end) else ''}"
+
+    plt.text(
+        x=xmiddle,
+        y=top_edge - 10,
+        s=name,
+        horizontalalignment="center",
+        verticalalignment="bottom",
+        weight="bold",
+        fontsize=12,
+    )
+    plt.text(
+        x=xmiddle,
+        y=top_edge - 11,
+        s=f"{num} workouts\n{months} months",
+        horizontalalignment="center",
+        verticalalignment="top",
+        fontsize=6,
+    )
+
+plt.title("Strength training history", fontsize=20, weight="bold", pad=25)
+
+plt.xlabel("Date", weight="bold")
+plt.ylabel("One rep max (kg)", labelpad=15, weight="bold")
+
+plt.legend(loc="lower right")
+
+plt.xticks(programs.start, rotation=30)
+
+plt.subplots_adjust(bottom=0.15)
+
+plt.gca().xaxis.grid(True, linestyle="--", linewidth=1, color="black", alpha=0.4)
+plt.gca().yaxis.grid(True, linestyle="-", linewidth=1, color="black", alpha=0.1)
 
 plt.show()
