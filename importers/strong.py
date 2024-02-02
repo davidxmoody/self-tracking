@@ -36,7 +36,15 @@ df = pd.DataFrame(
     }
 )
 
+# Fix period where I thought old barbell was heavier than it actually was
+df.loc[
+    (df.datetime >= "2020-10-30")
+    & (df.datetime < "2022-03-11")
+    & (df.exercise_name.str.contains("Barbell")),
+    "weight",
+] -= 2.5
+
 
 # %% Write data
 
-df.to_csv(expandvars("$DIARY_DIR/data/strong.tsv"), sep="\t", index=False)
+df.to_csv(expandvars("$DIARY_DIR/data/strength.tsv"), sep="\t", index=False)
