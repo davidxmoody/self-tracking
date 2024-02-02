@@ -20,6 +20,19 @@ def parse_duration(value: str):
     return minutes
 
 
+def get_program(d):
+    if d >= date(2023, 3, 6):
+        return "GZCLP"
+    if d >= date(2021, 9, 29):
+        return "531"
+    if d >= date(2021, 2, 2):
+        return "Upper/Lower"
+    if d >= date(2020, 9, 23):
+        return "PPL"
+    if d >= date(2020, 6, 28):
+        return "Beginner"
+
+
 # %% Load data
 
 df = pd.read_csv(expandvars("$HOME/Downloads/strong.csv"), parse_dates=["Date"])
@@ -29,6 +42,7 @@ df = pd.DataFrame(
         "date": df.Date.dt.date,
         "time": df.Date.dt.time,
         "title": df["Workout Name"],
+        "program": df.Date.dt.date.apply(get_program),
         "duration": df.Duration.apply(parse_duration),
         "exercise": df["Exercise Name"],
         "weight": df.Weight.replace(0, np.nan),
