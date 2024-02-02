@@ -1,7 +1,8 @@
 # %% Imports
 
 from datetime import timedelta
-from os import environ, path
+from os import environ
+from os.path import expandvars
 
 import calmap
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ load_dotenv()
 
 
 def read_data(name: str):
-    filename = path.join(environ["DIARY_DIR"], "data", f"{name}.tsv")
+    filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
     df = pd.read_table(filename, parse_dates=["date"], index_col="date")
     return df
 
@@ -62,9 +63,8 @@ plt.show(block=False)
 
 # %% Load ATracker data
 
-ad = pd.read_table(path.join(environ["DIARY_DIR"], "data/atracker.tsv"))
+ad = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
 ad["start"] = ad["start"].astype("datetime64[s, Europe/London]")
-# ad["duration"] = ad["duration"].astype("Int64")
 
 hours_offset = 4
 ad["date"] = pd.to_datetime((ad["start"] - timedelta(hours=hours_offset)).dt.date)

@@ -1,6 +1,7 @@
 # %% Imports
 
 from os import environ
+from os.path import expandvars
 
 from dotenv import load_dotenv
 from icalendar import Calendar
@@ -39,4 +40,4 @@ df = df[["start", "duration", "category"]]
 
 # %% Write
 
-df.to_csv(f"{environ['DIARY_DIR']}/data/atracker.tsv", sep="\t", index=False)
+df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)

@@ -39,4 +39,4 @@ df = pd.DataFrame(
 
 # %% Write data
 
-df.to_csv(expandvars("$DIARY_DIR/data/strong.tsv"), index=False, sep="\t")
+df.to_csv(expandvars("$DIARY_DIR/data/strong.tsv"), sep="\t", index=False)

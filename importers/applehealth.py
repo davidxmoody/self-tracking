@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 from glob import glob
 from math import isnan
-from os import environ, path
+from os.path import expandvars
 from typing import cast
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
@@ -13,7 +13,7 @@ import pandas as pd
 
 # %% Load data
 
-filename = sorted(glob(path.expanduser("~/Downloads/????-??-??-apple-health.zip")))[-1]
+filename = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
 with ZipFile(filename) as zf:
     root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
 
@@ -25,10 +25,6 @@ last_full_day = export_date - timedelta(days=1)
 
 
 # %% Helpers
-
-
-def diary_path(*parts: str):
-    return path.join(environ["DIARY_DIR"], *parts)
 
 
 def parse_date(node):
@@ -100,7 +96,9 @@ new_running = sum_by_date(
     )
 )
 
-old_running = read_table_with_date_index(diary_path("misc/2024-01-25-old-running.tsv"))
+old_running = read_table_with_date_index(
+    expandvars("$DIARY_DIR/misc/2024-01-25-old-running.tsv")
+)
 
 running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
 
@@ -178,7 +176,7 @@ new_weight_data = pd.concat(
 )
 
 old_weight_data = read_table_with_date_index(
-    diary_path("misc/2024-01-22-old-weights.tsv")
+    expandvars("$DIARY_DIR/misc/2024-01-22-old-weights.tsv")
 )
 
 weight_data = pd.concat([old_weight_data, new_weight_data])
@@ -216,7 +214,7 @@ def write_tsv(df: pd.DataFrame, name: str, precisions: dict[str, int] = {}):
             lambda v: "" if isnan(float(v)) else format(float(v), f".{p}f")
         )
 
-    output_filename = diary_path("data", f"{name}.tsv")
+    output_filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
     df.to_csv(output_filename, sep="\t", float_format="%.2f")
 
 
