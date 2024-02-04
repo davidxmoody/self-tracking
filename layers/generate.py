@@ -69,3 +69,22 @@ write_layer(cycling_indoor_layer, "fitness", "cycling-indoor")
 cycling_outdoor = read_data("cycling-outdoor").calories
 cycling_outdoor_layer = resample_weekly(cycling_outdoor).sum() / 2000
 write_layer(cycling_outdoor_layer, "fitness", "cycling-outdoor")
+
+
+# %% Strength workouts
+
+strength = (
+    read_data("strength", index_col=None)
+    .drop_duplicates("date")
+    .set_index("date")
+    .program
+)
+strength_layer = resample_weekly(strength).size() / 4
+write_layer(strength_layer, "fitness", "strength")
+
+
+# %% Meditation
+
+meditation = read_data("meditation").mindful_minutes
+meditation_layer = resample_weekly(meditation).sum() / 120
+write_layer(meditation_layer, "fitness", "meditation")
