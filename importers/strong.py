@@ -33,7 +33,7 @@ def get_program(d):
         return "Noob"
 
 
-# %% Load data
+# %% Load
 
 df = pd.read_csv(expandvars("$HOME/Downloads/strong.csv"), parse_dates=["Date"])
 
@@ -60,6 +60,6 @@ df.loc[
 ] -= 2.5
 
 
-# %% Write data
+# %% Write
 
 df.to_csv(expandvars("$DIARY_DIR/data/strength.tsv"), sep="\t", index=False)

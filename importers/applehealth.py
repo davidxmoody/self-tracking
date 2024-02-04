@@ -11,10 +11,10 @@ from zipfile import ZipFile
 import pandas as pd
 
 
-# %% Load data
+# %% Load
 
-filename = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
-with ZipFile(filename) as zf:
+filepath = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
+with ZipFile(filepath) as zf:
     root = ET.parse(zf.open("apple_health_export/export.xml")).getroot()
 
 export_date_node = root.find("./ExportDate")
@@ -80,9 +80,9 @@ def read_table_with_date_index(filename: str):
     return pd.read_table(filename, parse_dates=["date"], index_col="date")
 
 
-# %% Running data
+# %% Running
 
-new_running = sum_by_date(
+running_new = sum_by_date(
     pd.DataFrame(
         {
             "date": parse_date(node),
@@ -96,16 +96,16 @@ new_running = sum_by_date(
     )
 )
 
-old_running = read_table_with_date_index(
+running_old = read_table_with_date_index(
     expandvars("$DIARY_DIR/misc/2024-01-25-old-running.tsv")
 )
 
-running = pd.concat([old_running, new_running]).astype({"calories": "Int64"})
+running = pd.concat([running_old, running_new]).astype({"calories": "Int64"})
 
 
-# %% Cycling data
+# %% Cycling
 
-mixed_cycling = pd.DataFrame(
+cycling_mixed = pd.DataFrame(
     {
         "date": parse_date(node),
         "calories": parse_calories(node),
@@ -118,20 +118,20 @@ mixed_cycling = pd.DataFrame(
     )
 )
 
-indoor_cycling = sum_by_date(
-    mixed_cycling[mixed_cycling["indoor"] == True].drop(["distance", "indoor"], axis=1)
+cycling_indoor = sum_by_date(
+    cycling_mixed[cycling_mixed["indoor"] == True].drop(["distance", "indoor"], axis=1)
 )
 
-outdoor_cycling = sum_by_date(
-    mixed_cycling[mixed_cycling["indoor"] == False].drop(["indoor"], axis=1)
+cycling_outdoor = sum_by_date(
+    cycling_mixed[cycling_mixed["indoor"] == False].drop(["indoor"], axis=1)
 )
 
 
-# %% Activity data
+# %% Activity
 
 activity_sources = ["David’s Apple\xa0Watch"]
 
-activity_data = pd.concat(
+activity = pd.concat(
     {
         "active_calories": gather_records(
             "ActiveEnergyBurned", "Cal", activity_sources
@@ -141,14 +141,14 @@ activity_data = pd.concat(
     axis=1,
 )
 
-activity_data = activity_data.loc["2017-12-16":last_full_day].round(0).astype(int)
+activity = activity.loc["2017-12-16":last_full_day].round(0).astype(int)
 
 
-# %% Diet data
+# %% Diet
 
 diet_sources = ["Calorie Counter", "YAZIO", "MyNetDiary"]
 
-diet_data = pd.concat(
+diet = pd.concat(
     {
         "calories": gather_records("DietaryEnergyConsumed", "Cal", diet_sources),
         "protein": gather_records("DietaryProtein", "g", diet_sources),
@@ -160,14 +160,14 @@ diet_data = pd.concat(
     axis=1,
 ).astype(int)
 
-diet_data = diet_data.loc[:last_full_day]
+diet = diet.loc[:last_full_day]
 
 
-# %% Weight data
+# %% Weight
 
 weight_sources = ["Withings"]
 
-new_weight_data = pd.concat(
+weight_new = pd.concat(
     {
         "weight": gather_records("BodyMass", "lb", weight_sources, agg="min"),
         "fat": gather_records("BodyFatPercentage", "%", weight_sources, agg="min"),
@@ -175,14 +175,14 @@ new_weight_data = pd.concat(
     axis=1,
 )
 
-old_weight_data = read_table_with_date_index(
+weight_old = read_table_with_date_index(
     expandvars("$DIARY_DIR/misc/2024-01-22-old-weights.tsv")
 )
 
-weight_data = pd.concat([old_weight_data, new_weight_data])
+weight = pd.concat([weight_old, weight_new])
 
 
-# %% Meditation data
+# %% Meditation
 
 
 def parse_mindful_minutes(node):
@@ -191,7 +191,7 @@ def parse_mindful_minutes(node):
     return round((end - start).total_seconds() / 60)
 
 
-meditation_data = sum_by_date(
+meditation = sum_by_date(
     pd.DataFrame(
         {
             "date": parse_date(node),
@@ -219,9 +219,9 @@ def write_tsv(df: pd.DataFrame, name: str, precisions: dict[str, int] = {}):
 
 
 write_tsv(running, "running")
-write_tsv(indoor_cycling, "indoor-cycling")
-write_tsv(outdoor_cycling, "outdoor-cycling")
-write_tsv(weight_data, "weight", {"fat": 3})
-write_tsv(activity_data, "activity")
-write_tsv(diet_data, "diet")
-write_tsv(meditation_data, "meditation")
+write_tsv(cycling_indoor, "cycling-indoor")
+write_tsv(cycling_outdoor, "cycling-outdoor")
+write_tsv(weight, "weight", {"fat": 3})
+write_tsv(activity, "activity")
+write_tsv(diet, "diet")
+write_tsv(meditation, "meditation")

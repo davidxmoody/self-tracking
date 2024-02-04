@@ -12,7 +12,7 @@ import pandas as pd
 load_dotenv()
 
 
-# %% Load data
+# %% Load
 
 
 def read_data(name: str):
@@ -21,21 +21,17 @@ def read_data(name: str):
     return df
 
 
-activity_data = read_data("activity")
-diet_data = read_data("diet")
-weight_data = read_data("weight")
-strength_data = read_data("strength")
-running_data = read_data("running")
+activity = read_data("activity")
+diet = read_data("diet")
+weight = read_data("weight")
+strength = read_data("strength")
+running = read_data("running")
 
 
 # %% Calorie deficit graph
 
 calmap.calendarplot(
-    (
-        diet_data["calories"]
-        - activity_data["active_calories"]
-        - activity_data["basal_calories"]
-    )
+    (diet["calories"] - activity["active_calories"] - activity["basal_calories"])
     .dropna()
     .iloc[:-1],
     daylabels="MTWTFSS",
@@ -50,7 +46,7 @@ plt.show(block=False)
 # %% Running graph
 
 fig, ax = calmap.calendarplot(
-    running_data["distance"]["2024":],
+    running["distance"]["2024":],
     dayticks=[],
     vmin=-2,
     vmax=10,
@@ -61,7 +57,7 @@ if man:
 plt.show(block=False)
 
 
-# %% Load ATracker data
+# %% Load ATracker
 
 ad = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
 ad["start"] = ad["start"].astype("datetime64[s, Europe/London]")

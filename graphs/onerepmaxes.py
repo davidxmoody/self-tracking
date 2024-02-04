@@ -9,7 +9,7 @@ import pandas as pd
 import seaborn as sns
 
 
-# %% Load data
+# %% Load
 
 df = pd.read_table(expandvars("$DIARY_DIR/data/strength.tsv"), parse_dates=["date"])
 
@@ -40,7 +40,7 @@ df["exercise"] = df.exercise.map(tracked_exercises)
 df["onerepmax"] = df.weight / (1.0278 - 0.0278 * df.reps)
 
 
-# %% Format data
+# %% Format
 
 # Exclude days where the exercise was done for high volume (and ignore warmups)
 dfl = (
@@ -91,6 +91,10 @@ right_edge = dfl.iloc[-1].date + timedelta(days=90)
 
 plt.ylim(bottom=0, top=top_edge)
 plt.xlim(left=left_edge, right=right_edge)
+
+# TODO perhaps consider using "standard" xticks and bringing back these custom lines
+# for start in programs.start.iloc[1:]:
+#     plt.axvline(x=start, linestyle="--", linewidth=1, color="black", alpha=0.3)
 
 for name, start, num, end in programs.values:
     xmiddle = start + ((right_edge if pd.isnull(end) else end) - start) / 2
