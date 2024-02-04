@@ -1,15 +1,11 @@
 # %% Imports
 
 from datetime import timedelta
-from os import environ
 from os.path import expandvars
 
 import calmap
-from dotenv import load_dotenv
 import matplotlib.pyplot as plt
 import pandas as pd
-
-load_dotenv()
 
 
 # %% Load
@@ -65,11 +61,7 @@ ad["start"] = ad["start"].astype("datetime64[s, Europe/London]")
 hours_offset = 4
 ad["date"] = pd.to_datetime((ad["start"] - timedelta(hours=hours_offset)).dt.date)
 
-pivot_categories = environ["ATRACKER_CATEGORIES"].split(",")
-ap = ad.loc[ad["category"].isin(pivot_categories)].pivot_table(
-    values="duration", index="date", columns="category", aggfunc="sum"
-)
-
+ap = ad.pivot_table(values="duration", index="date", columns="category", aggfunc="sum")
 ap = ap.fillna(ap.mask(ap.ffill().notna(), 0))
 
 

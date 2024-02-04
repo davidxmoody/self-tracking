@@ -31,9 +31,12 @@ df = pd.DataFrame(
     )
 ).sort_values("start")
 
-df["duration"] = (df["end"] - df["start"]).dt.total_seconds().astype(int)
+df["duration"] = (df.end - df.start).dt.total_seconds().astype(int)
 
-df.loc[df["category"] == "side project", "category"] = "project"
+df.loc[df.category == "side project", "category"] = "project"
+
+included_categories = environ["ATRACKER_CATEGORIES"].split(",")
+df = df.loc[df.category.isin(included_categories)]
 
 df = df[["start", "duration", "category"]]
 
