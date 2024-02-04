@@ -56,5 +56,16 @@ for name in streaks.name.unique():
 # %% Running
 
 running = read_data("running").distance
-running_weekly = resample_weekly(running).sum()
-write_layer((running_weekly**0.5) / 5, "fitness", "running")
+running_layer = (resample_weekly(running).sum() ** 0.5) / 5
+write_layer(running_layer, "fitness", "running")
+
+
+# %% Cycling
+
+cycling_indoor = read_data("cycling-indoor").calories
+cycling_indoor_layer = resample_weekly(cycling_indoor).sum() / 2000
+write_layer(cycling_indoor_layer, "fitness", "cycling-indoor")
+
+cycling_outdoor = read_data("cycling-outdoor").calories
+cycling_outdoor_layer = resample_weekly(cycling_outdoor).sum() / 2000
+write_layer(cycling_outdoor_layer, "fitness", "cycling-outdoor")
