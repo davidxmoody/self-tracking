@@ -47,6 +47,23 @@ atracker = atracker_events.pivot_table(
 atracker = atracker.fillna(atracker.mask(atracker.ffill().notna(), 0))
 
 
+# %% Combined graph
+
+cats = ["project", "workout", "youtube"]
+
+fig, ax = plt.subplots(nrows=len(cats), ncols=1)
+
+for i, cat in enumerate(cats):
+    monthly = atracker[cat].resample("MS").sum() / (60 * 60)
+    monthly.plot(kind="bar", ax=ax[i])
+    ax[i].set_xticklabels([x.strftime("%Y-%m") for x in monthly.index])
+    ax[i].set_xlabel("")
+    ax[i].set_title(cat)
+
+plt.subplots_adjust(hspace=1)
+plt.show()
+
+
 # %% Calorie deficit graph
 
 deficit = (diet.calories - activity.active_calories - activity.basal_calories).dropna()
