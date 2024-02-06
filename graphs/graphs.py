@@ -8,13 +8,23 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+# %% Helpers
+
+
+def set_window_title(title: str):
+    if man := plt.get_current_fig_manager():
+        man.set_window_title(title)
+
+
 # %% Load
 
 
 def read_data(name: str):
-    filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
-    df = pd.read_table(filename, parse_dates=["date"], index_col="date")
-    return df
+    return pd.read_table(
+        expandvars(f"$DIARY_DIR/data/{name}.tsv"),
+        parse_dates=["date"],
+        index_col="date",
+    )
 
 
 activity = read_data("activity")
@@ -24,19 +34,32 @@ strength = read_data("strength")
 running = read_data("running")
 
 
+atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+atracker_events["start"] = atracker_events.start.astype("datetime64[s, Europe/London]")
+atracker_events["date"] = pd.to_datetime(
+    (atracker_events.start - timedelta(hours=4)).dt.date
+)
+atracker_events = atracker_events.query("date >= '2020'")
+
+atracker = atracker_events.pivot_table(
+    values="duration", index="date", columns="category", aggfunc="sum"
+)
+atracker = atracker.fillna(atracker.mask(atracker.ffill().notna(), 0))
+
+
 # %% Calorie deficit graph
 
+deficit = (diet.calories - activity.active_calories - activity.basal_calories).dropna()
 calmap.calendarplot(
-    (diet["calories"] - activity["active_calories"] - activity["basal_calories"])
-    .dropna()
-    .iloc[:-1],
+    deficit,
     daylabels="MTWTFSS",
     dayticks=[0, 2, 4, 6],
     cmap="seismic",
-    vmin=-1500,
-    vmax=1500,
+    vmin=-1000,
+    vmax=1000,
 )
-plt.show(block=False)
+set_window_title("Calorie deficit/surplus")
+plt.show()
 
 
 # %% Running graph
@@ -47,22 +70,8 @@ fig, ax = calmap.calendarplot(
     vmin=-2,
     vmax=10,
 )
-man = plt.get_current_fig_manager()
-if man:
-    man.set_window_title("Running")
-plt.show(block=False)
-
-
-# %% Load ATracker
-
-ad = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-ad["start"] = ad["start"].astype("datetime64[s, Europe/London]")
-
-hours_offset = 4
-ad["date"] = pd.to_datetime((ad["start"] - timedelta(hours=hours_offset)).dt.date)
-
-ap = ad.pivot_table(values="duration", index="date", columns="category", aggfunc="sum")
-ap = ap.fillna(ap.mask(ap.ffill().notna(), 0))
+set_window_title("Running")
+plt.show()
 
 
 # %% ATracker graph
@@ -70,11 +79,10 @@ ap = ap.fillna(ap.mask(ap.ffill().notna(), 0))
 cat = "project"
 
 calmap.calendarplot(
-    ap[cat],
+    atracker[cat],
     daylabels="MTWTFSS",
     dayticks=[0, 2, 4, 6],
     vmin=0,
 )
-if man := plt.get_current_fig_manager():
-    man.set_window_title(cat)
-plt.show(block=False)
+set_window_title(cat)
+plt.show()
