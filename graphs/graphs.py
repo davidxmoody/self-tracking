@@ -19,19 +19,27 @@ def set_window_title(title: str):
 # %% Load
 
 
-def read_data(name: str):
+def read_data(name: str, index_col: str | None = "date"):
     return pd.read_table(
         expandvars(f"$DIARY_DIR/data/{name}.tsv"),
         parse_dates=["date"],
-        index_col="date",
+        index_col=index_col,
     )
 
 
 activity = read_data("activity")
 diet = read_data("diet")
 weight = read_data("weight")
-strength = read_data("strength")
+strength = read_data("strength", index_col=None)
 running = read_data("running")
+cycling_indoor = read_data("cycling-indoor")
+cycling_outdoor = read_data("cycling-outdoor")
+
+climbing = pd.read_json(expandvars("$DIARY_DIR/data/dates/climbing.json"))
+climbing.columns = ["date"]
+climbing["date"] = pd.to_datetime(climbing.date)
+climbing["num"] = 1
+climbing = climbing.set_index("date")
 
 
 atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
@@ -51,7 +59,7 @@ atracker = atracker.fillna(atracker.mask(atracker.ffill().notna(), 0))
 
 cats = ["project", "workout", "youtube"]
 
-fig, ax = plt.subplots(nrows=len(cats), ncols=1)
+fig, ax = plt.subplots(nrows=len(cats), ncols=1, sharey=True)
 
 for i, cat in enumerate(cats):
     monthly = atracker[cat].resample("MS").sum() / (60 * 60)
@@ -61,6 +69,45 @@ for i, cat in enumerate(cats):
     ax[i].set_title(cat)
 
 plt.subplots_adjust(hspace=1)
+set_window_title("ATracker combined graph")
+plt.show()
+
+
+# %% Exercise type comparison
+
+rule = "MS"
+label_format = "%Y-%m"
+
+exercises = {
+    "running": running.distance.resample(rule).sum(),
+    "cycling_indoor": cycling_indoor.calories.resample(rule).sum(),
+    "cycling_outdoor": cycling_outdoor.calories.resample(rule).sum(),
+    "strength": strength.drop_duplicates("date")
+    .set_index("date")
+    .program.resample(rule)
+    .size(),
+    "climbing": climbing.num.resample(rule).sum(),
+}
+
+mindate = min(e.index.min() for e in exercises.values())
+maxdate = max(e.index.max() for e in exercises.values())
+drange = pd.date_range(mindate, maxdate, freq=rule)
+
+exercises = {k: v.reindex(drange) for k, v in exercises.items()}
+
+fig, ax = plt.subplots(nrows=len(exercises), ncols=1, sharex=True)
+
+# TODO try plotting indoor/outdoor on same graph as stacked bar chart
+
+for i, (name, exercise) in enumerate(exercises.items()):
+    exercise.plot(kind="bar", ax=ax[i])
+    ax[i].set_xticklabels(
+        [(x.strftime(label_format) if x.month % 3 == 0 else "") for x in exercise.index]
+    )
+    ax[i].set_xlabel("")
+    ax[i].set_title(name)
+
+plt.subplots_adjust(hspace=0.5)
 plt.show()
 
 
