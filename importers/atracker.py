@@ -1,6 +1,6 @@
 # %% Imports
 
-from datetime import datetime
+from datetime import timedelta
 from os.path import expandvars
 import re
 import subprocess
@@ -22,7 +22,7 @@ event_regex = re.compile(
 )
 
 
-def get_events(year: int):
+def get_events(since: str):
     result = subprocess.run(
         [
             "icalBuddy",
@@ -36,8 +36,8 @@ def get_events(year: int):
             "-nc",
             "-ic",
             "ATracker",
-            f"eventsFrom:{year}-01-01",
-            f"to:{year}-12-31",
+            f"eventsFrom:{since}",
+            f"to:3000-12-31",
         ],
         check=True,
         capture_output=True,
@@ -60,15 +60,20 @@ def get_events(year: int):
     df.loc[df.category == "side project", "category"] = "project"
     df = df.loc[df.category != "cooking"]
 
-    df = df.astype({"category": "category"})
-
     df = df.sort_values("start").reset_index(drop=True)
 
     return df[["start", "duration", "category"]]
 
 
-df = (
-    pd.concat(get_events(year) for year in range(2020, datetime.now().year + 1))
+existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
+
+since = existing_df.iloc[-1, 0] - timedelta(days=7)
+new_df = get_events(since)
+
+merged_df = (
+    pd.concat([existing_df, new_df])
+    .sort_values("start")
     .drop_duplicates()
     .reset_index(drop=True)
 )
@@ -76,4 +81,5 @@ df = (
 
 # %% Write
 
-df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)
+merged_df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)
+print(f"Added {merged_df.shape[0] - existing_df.shape[0]} new events")
