@@ -33,7 +33,7 @@ def stringify_index(series: pd.Series):
 def write_layer(series, category: str, name: str):
     filepath = expandvars(f"$DIARY_DIR/layers/{category}/{name}.json")
     makedirs(dirname(filepath), exist_ok=True)
-    stringify_index(series).clip(0, 1).round(2).to_json(filepath, indent=2)
+    stringify_index(series[series != 0]).clip(0, 1).round(2).to_json(filepath, indent=2)
 
 
 # %% Streaks
@@ -65,7 +65,6 @@ for category in atracker.category.unique():
         atracker.query("category == @category").set_index("date").duration
     ).sum()
     layer = (layer / layer.quantile(0.9)) ** 0.7
-    layer = layer[layer != 0]
     write_layer(layer, "atracker", category)
 
 
@@ -104,3 +103,14 @@ write_layer(strength_layer, "fitness", "strength")
 meditation = read_data("meditation").mindful_minutes
 meditation_layer = resample_weekly(meditation).sum() / 120
 write_layer(meditation_layer, "fitness", "meditation")
+
+
+# %% Climbing
+
+climbing = pd.read_json(expandvars("$DIARY_DIR/misc/2024-02-07-climbing-dates.json"))
+climbing.columns = ["date"]
+climbing["date"] = pd.to_datetime(climbing.date)
+climbing["num"] = 1
+climbing = climbing.set_index("date")
+climbing_layer = (resample_weekly(climbing.num).sum() / 3) ** 0.5
+write_layer(climbing_layer, "fitness", "climbing")

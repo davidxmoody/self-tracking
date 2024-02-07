@@ -35,7 +35,7 @@ running = read_data("running")
 cycling_indoor = read_data("cycling-indoor")
 cycling_outdoor = read_data("cycling-outdoor")
 
-climbing = pd.read_json(expandvars("$DIARY_DIR/data/dates/climbing.json"))
+climbing = pd.read_json(expandvars("$DIARY_DIR/misc/2024-02-07-climbing-dates.json"))
 climbing.columns = ["date"]
 climbing["date"] = pd.to_datetime(climbing.date)
 climbing["num"] = 1
