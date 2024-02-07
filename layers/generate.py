@@ -1,5 +1,6 @@
 # %% Imports
 
+from datetime import timedelta
 from os import makedirs
 from os.path import dirname, expandvars
 
@@ -51,6 +52,21 @@ for name in streaks.name.unique():
     values = streaks.query("name == @name").set_index("date").value
     weekly = resample_weekly(values).agg(score_week)
     write_layer(weekly, "streaks", name)
+
+
+# %% ATracker
+
+atracker = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+atracker["start"] = atracker.start.astype("datetime64[s, Europe/London]")
+atracker["date"] = pd.to_datetime((atracker.start - timedelta(hours=4)).dt.date)
+
+for category in atracker.category.unique():
+    layer = resample_weekly(
+        atracker.query("category == @category").set_index("date").duration
+    ).sum()
+    layer = (layer / layer.quantile(0.9)) ** 0.7
+    layer = layer[layer != 0]
+    write_layer(layer, "atracker", category)
 
 
 # %% Running
