@@ -16,7 +16,7 @@ filepath = sorted(glob(expandvars("$HOME/Downloads/????-??-??-google-takeout.zip
 with ZipFile(filepath) as zf:
     json_data = json.load(zf.open("Takeout/Location History (Timeline)/Records.json"))
 
-df = pd.DataFrame(json_data["locations"])
+df = pd.DataFrame(json_data["locations"]).query("accuracy < 60")
 df = (
     pd.DataFrame(
         {
@@ -25,17 +25,16 @@ df = (
             ),
             "lat": df.latitudeE7 / 1e7,
             "lon": df.longitudeE7 / 1e7,
-            "accuracy": df.accuracy,
         }
     )
     .drop_duplicates("datetime")
     .set_index("datetime")
-    .query("accuracy < 50")
 )
 
 
 # %% Heat map
 
-map = folium.Map(zoom_start=14)
-HeatMap(df.values, blur=3, radius=10).add_to(map)
+start_location = list(df.loc["2020":].median())
+map = folium.Map(location=start_location, zoom_start=12)
+HeatMap(df, blur=12, radius=15).add_to(map)
 map.show_in_browser()
