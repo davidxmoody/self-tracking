@@ -10,11 +10,13 @@ import pandas as pd
 # %% Helpers
 
 
-def read_data(name: str, index_col: str | None = "date"):
+def read_data(
+    name: str, index_col: str | None = "date", parse_dates: list[str] | bool = ["date"]
+):
     return pd.read_table(
         expandvars(f"$DIARY_DIR/data/{name}.tsv"),
-        parse_dates=["date"],
         index_col=index_col,
+        parse_dates=parse_dates,
     )
 
 
@@ -26,7 +28,8 @@ def stringify_index(series: pd.Series):
     return (
         series.reset_index()
         .astype({series.index.name: "str"})
-        .set_index(series.index.name)[series.name]
+        .set_index(series.index.name)
+        .squeeze()
     )
 
 
@@ -102,7 +105,7 @@ write_layer(strength_layer, "fitness", "strength")
 
 meditation = read_data("meditation").mindful_minutes
 meditation_layer = resample_weekly(meditation).sum() / 120
-write_layer(meditation_layer, "fitness", "meditation")
+write_layer(meditation_layer, "misc", "meditation")
 
 
 # %% Climbing
@@ -114,3 +117,10 @@ climbing["num"] = 1
 climbing = climbing.set_index("date")
 climbing_layer = (resample_weekly(climbing.num).sum() / 3) ** 0.5
 write_layer(climbing_layer, "fitness", "climbing")
+
+
+# %% Holidays
+
+holidays = read_data("holidays", index_col="end", parse_dates=["start", "end"])
+holidays_layer = resample_weekly((holidays.index - holidays.start).dt.days).sum() / 5
+write_layer(holidays_layer, "misc", "holidays")
