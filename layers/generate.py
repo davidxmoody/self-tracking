@@ -110,12 +110,8 @@ write_layer(meditation_layer, "misc", "meditation")
 
 # %% Climbing
 
-climbing = pd.read_json(expandvars("$DIARY_DIR/misc/2024-02-07-climbing-dates.json"))
-climbing.columns = ["date"]
-climbing["date"] = pd.to_datetime(climbing.date)
-climbing["num"] = 1
-climbing = climbing.set_index("date")
-climbing_layer = (resample_weekly(climbing.num).sum() / 3) ** 0.5
+climbing = read_data("climbing")
+climbing_layer = (resample_weekly(climbing.place).size() / 3) ** 0.5
 write_layer(climbing_layer, "fitness", "climbing")
 
 

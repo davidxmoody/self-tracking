@@ -34,12 +34,7 @@ strength = read_data("strength", index_col=None)
 running = read_data("running")
 cycling_indoor = read_data("cycling-indoor")
 cycling_outdoor = read_data("cycling-outdoor")
-
-climbing = pd.read_json(expandvars("$DIARY_DIR/misc/2024-02-07-climbing-dates.json"))
-climbing.columns = ["date"]
-climbing["date"] = pd.to_datetime(climbing.date)
-climbing["num"] = 1
-climbing = climbing.set_index("date")
+climbing = read_data("climbing")
 
 
 atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
@@ -86,7 +81,7 @@ exercises = {
     .set_index("date")
     .program.resample(rule)
     .size(),
-    "climbing": climbing.num.resample(rule).sum(),
+    "climbing": climbing.place.resample(rule).size(),
 }
 
 mindate = min(e.index.min() for e in exercises.values())
