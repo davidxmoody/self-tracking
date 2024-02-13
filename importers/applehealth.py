@@ -204,6 +204,37 @@ meditation = sum_by_date(
 )
 
 
+# %% Sleep
+
+sleep_sources = ["David’s Apple\xa0Watch"]
+
+sleep = pd.DataFrame(
+    {
+        "source": x.attrib["sourceName"],
+        "start": pd.to_datetime(x.attrib["startDate"]),
+        "end": pd.to_datetime(x.attrib["endDate"]),
+        "subtype": x.attrib["value"][28:],
+    }
+    for x in root.iterfind("./Record[@type='HKCategoryTypeIdentifierSleepAnalysis']")
+)
+
+# Note: A lot of potential data in an older format is being discarded here.
+sleep = sleep.loc[
+    sleep.source.isin(sleep_sources)
+    & ~sleep.subtype.isin(["AsleepUnspecified", "InBed"])
+]
+
+sleep["subtype"] = sleep.subtype.str.replace("Asleep", "")
+
+sleep["duration"] = (sleep.end - sleep.start).dt.total_seconds()
+
+sleep["date"] = pd.to_datetime((sleep.end + timedelta(hours=8)).dt.date)
+
+sleep_pivot = sleep.pivot_table(
+    index="date", columns="subtype", values="duration", aggfunc="sum"
+).astype(int)[["Deep", "Core", "REM", "Awake"]]
+
+
 # %% Write TSV files
 
 
@@ -225,3 +256,4 @@ write_tsv(weight, "weight", {"fat": 3})
 write_tsv(activity, "activity")
 write_tsv(diet, "diet")
 write_tsv(meditation, "meditation")
+write_tsv(sleep_pivot, "sleep")
