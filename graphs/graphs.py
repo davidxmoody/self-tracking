@@ -35,7 +35,9 @@ running = read_data("running")
 cycling_indoor = read_data("cycling-indoor")
 cycling_outdoor = read_data("cycling-outdoor")
 climbing = read_data("climbing")
+sleep = read_data("sleep")
 
+deficit = (diet.calories - activity.active_calories - activity.basal_calories).dropna()
 
 atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
 atracker_events["start"] = atracker_events.start.astype("datetime64[s, Europe/London]")
@@ -108,7 +110,6 @@ plt.show()
 
 # %% Calorie deficit graph
 
-deficit = (diet.calories - activity.active_calories - activity.basal_calories).dropna()
 calmap.calendarplot(
     deficit,
     daylabels="MTWTFSS",
@@ -144,4 +145,24 @@ calmap.calendarplot(
     vmin=0,
 )
 set_window_title(cat)
+plt.show()
+
+
+# %% Weight/deficit graph
+
+drange = pd.date_range("2022-01-01", deficit.index.max())
+
+weight_loss = (
+    weight.weight.reindex(drange)
+    .interpolate()
+    .pct_change()
+    .rolling(window=14, center=True)
+    .mean()
+    .dropna()
+)
+
+deficit_in_drange = deficit.reindex(weight_loss.index)
+
+print(weight_loss.corr(deficit_in_drange))
+plt.scatter(x=deficit_in_drange, y=weight_loss)
 plt.show()
