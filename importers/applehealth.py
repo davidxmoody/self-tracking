@@ -82,7 +82,26 @@ def read_table_with_date_index(filename: str):
 
 # %% Running
 
-running_new = sum_by_date(
+running_manual = read_table_with_date_index(
+    expandvars("$DIARY_DIR/misc/2024-02-14-old-running.tsv")
+)
+
+running_garmin = pd.read_csv(
+    expandvars("$DIARY_DIR/misc/2024-02-14-garmin-export.csv")
+).query("`Activity Type` == 'Running'")
+
+running_garmin = pd.DataFrame(
+    {
+        "date": pd.to_datetime(running_garmin.Date.str[0:10]),
+        "distance": running_garmin.Distance,
+        "calories": running_garmin.Calories.str.replace(",", "").astype(int),
+        "duration": running_garmin.Time.replace(r"\.\d*", "", regex=True).apply(
+            lambda v: sum(int(x) * 60 ** (1 - i) for i, x in enumerate(v.split(":")))
+        ),
+    }
+).set_index("date")
+
+running_apple = sum_by_date(
     pd.DataFrame(
         {
             "date": parse_date(node),
@@ -96,11 +115,11 @@ running_new = sum_by_date(
     )
 )
 
-running_old = read_table_with_date_index(
-    expandvars("$DIARY_DIR/misc/2024-01-25-old-running.tsv")
+running = (
+    pd.concat([running_manual, running_garmin, running_apple])
+    .astype({"calories": "Int64"})
+    .sort_index()
 )
-
-running = pd.concat([running_old, running_new]).astype({"calories": "Int64"})
 
 
 # %% Cycling
