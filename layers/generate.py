@@ -1,8 +1,10 @@
 # %% Imports
 
 from datetime import timedelta
+from glob import glob
 from os import makedirs
-from os.path import dirname, expandvars
+from os.path import basename, dirname, expandvars
+import subprocess
 
 import pandas as pd
 
@@ -120,3 +122,37 @@ write_layer(climbing_layer, "fitness", "climbing")
 holidays = read_data("holidays", index_col="end", parse_dates=["start", "end"])
 holidays_layer = resample_weekly((holidays.index - holidays.start).dt.days).sum() / 5
 write_layer(holidays_layer, "misc", "holidays")
+
+
+# %% Git
+
+repos = glob(expandvars("$P_DIR/*/.git"))
+my_name = subprocess.run(
+    ["git", "config", "user.name"], check=True, capture_output=True, text=True
+).stdout.strip()
+
+for repo in repos:
+    commit_dates = subprocess.run(
+        [
+            "git",
+            f"--git-dir={repo}",
+            "log",
+            "--date=short",
+            "--pretty=tformat:%cd",
+            f"--author={my_name}",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+
+    commit_dates_layer = (
+        pd.DataFrame({"date": pd.to_datetime(commit_dates)})
+        .groupby("date")
+        .size()
+        .resample("W-Mon", closed="left", label="left")
+        .sum()
+        / 7
+    ) ** 0.5
+
+    write_layer(commit_dates_layer, "git", basename(dirname(repo)))
