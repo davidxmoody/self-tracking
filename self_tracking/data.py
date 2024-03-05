@@ -1,6 +1,6 @@
 # %% Imports
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from os.path import expandvars
 
 import pandas as pd
@@ -37,15 +37,21 @@ def atracker_events():
 
 
 def climbing():
-    return read_data("climbing")
+    df = read_data("climbing")
+    df["duration"] = pd.to_timedelta(df.duration, unit="m")
+    return df
 
 
 def cycling_indoor():
-    return read_data("cycling-indoor")
+    df = read_data("cycling-indoor")
+    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
+    return df
 
 
 def cycling_outdoor():
-    return read_data("cycling-outdoor")
+    df = read_data("cycling-outdoor")
+    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
+    return df
 
 
 def diet():
@@ -53,31 +59,40 @@ def diet():
 
 
 def eras():
-    # TODO maybe add on end and duration (in days)?
-    return read_data("eras", parse_dates=["start"], index_col=None)
+    df = read_data("eras", parse_dates=["start"], index_col=None)
+    df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
+    df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
+    df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
+    return df[["start", "end", "duration", "name", "color"]]
 
 
 def holidays():
     df = read_data("holidays", parse_dates=["start", "end"], index_col=None)
     df["duration"] = df.end - df.start + timedelta(days=1)
-    return df
+    return df[["start", "end", "duration", "name"]]
 
 
 def meditation():
-    return read_data("meditation")
+    df = read_data("meditation")
+    df["duration"] = pd.to_timedelta(df.mindful_minutes, unit="m")
+    return df[["duration"]]
 
 
 def running():
-    return read_data("running")
+    df = read_data("running")
+    df["calories"] = df.calories.astype("Int64")
+    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
+    return df
 
 
 def sleep():
-    # TODO maybe parse durations?
-    return read_data("sleep")
+    df = read_data("sleep")
+    for column in df:
+        df[column] = df[column].apply(lambda x: pd.to_timedelta(x, unit="s"))
+    return df
 
 
 def social():
-    # TODO this is old data and date index maybe won't work for everything
     return read_data("social")
 
 
@@ -86,8 +101,11 @@ def streaks():
 
 
 def strength():
-    # TODO rename to strength_sets
-    return read_data("strength", index_col=None)
+    df = read_data("strength", index_col=None)
+    df["duration"] = pd.to_timedelta(df.duration, unit="m")
+    df["time"] = pd.to_datetime(df.time, format="%H:%M:%S").dt.time
+    df["reps"] = df.reps.astype("Int64")
+    return df
 
 
 def weight():

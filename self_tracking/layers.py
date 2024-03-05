@@ -82,8 +82,8 @@ write_layer(strength_layer, "fitness", "strength")
 
 # %% Meditation
 
-meditation = d.meditation().mindful_minutes
-meditation_layer = meditation.resample(**weekly).sum() / 120
+meditation = d.meditation().duration
+meditation_layer = meditation.resample(**weekly).sum() / pd.to_timedelta(120, unit="m")
 write_layer(meditation_layer, "misc", "meditation")
 
 
