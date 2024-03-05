@@ -1,11 +1,10 @@
 # %% Imports
 
-from datetime import timedelta
-from os.path import expandvars
-
 import calmap
 import matplotlib.pyplot as plt
 import pandas as pd
+
+import self_tracking.data as d
 
 
 # %% Helpers
@@ -16,43 +15,9 @@ def set_window_title(title: str):
         man.set_window_title(title)
 
 
-# %% Load
-
-
-def read_data(name: str, index_col: str | None = "date"):
-    return pd.read_table(
-        expandvars(f"$DIARY_DIR/data/{name}.tsv"),
-        parse_dates=["date"],
-        index_col=index_col,
-    )
-
-
-activity = read_data("activity")
-diet = read_data("diet")
-weight = read_data("weight")
-strength = read_data("strength", index_col=None)
-running = read_data("running")
-cycling_indoor = read_data("cycling-indoor")
-cycling_outdoor = read_data("cycling-outdoor")
-climbing = read_data("climbing")
-sleep = read_data("sleep")
-
-deficit = (diet.calories - activity.active_calories - activity.basal_calories).dropna()
-
-atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-atracker_events["start"] = atracker_events.start.astype("datetime64[s, Europe/London]")
-atracker_events["date"] = pd.to_datetime(
-    (atracker_events.start - timedelta(hours=4)).dt.date
-)
-atracker_events = atracker_events.query("date >= '2020'")
-
-atracker = atracker_events.pivot_table(
-    values="duration", index="date", columns="category", aggfunc="sum"
-)
-atracker = atracker.fillna(atracker.mask(atracker.ffill().notna(), 0))
-
-
 # %% Combined graph
+
+atracker = d.atracker()
 
 cats = ["project", "workout", "youtube"]
 
@@ -76,14 +41,15 @@ rule = "MS"
 label_format = "%Y-%m"
 
 exercises = {
-    "running": running.distance.resample(rule).sum(),
-    "cycling_indoor": cycling_indoor.calories.resample(rule).sum(),
-    "cycling_outdoor": cycling_outdoor.calories.resample(rule).sum(),
-    "strength": strength.drop_duplicates("date")
+    "running": d.running().distance.resample(rule).sum(),
+    "cycling_indoor": d.cycling_indoor().calories.resample(rule).sum(),
+    "cycling_outdoor": d.cycling_outdoor().calories.resample(rule).sum(),
+    "strength": d.strength()
+    .drop_duplicates("date")
     .set_index("date")
     .program.resample(rule)
     .size(),
-    "climbing": climbing.place.resample(rule).size(),
+    "climbing": d.climbing().place.resample(rule).size(),
 }
 
 mindate = min(e.index.min() for e in exercises.values())
@@ -111,7 +77,7 @@ plt.show()
 # %% Calorie deficit graph
 
 calmap.calendarplot(
-    deficit,
+    d.net_calories(),
     daylabels="MTWTFSS",
     dayticks=[0, 2, 4, 6],
     cmap="seismic",
@@ -124,8 +90,8 @@ plt.show()
 
 # %% Running graph
 
-fig, ax = calmap.calendarplot(
-    running["distance"]["2024":],
+calmap.calendarplot(
+    d.running().distance["2024":],
     dayticks=[],
     vmin=-2,
     vmax=10,
@@ -139,7 +105,7 @@ plt.show()
 cat = "project"
 
 calmap.calendarplot(
-    atracker[cat],
+    d.atracker()[cat].dt.total_seconds(),
     daylabels="MTWTFSS",
     dayticks=[0, 2, 4, 6],
     vmin=0,
@@ -150,10 +116,13 @@ plt.show()
 
 # %% Weight/deficit graph
 
-drange = pd.date_range("2022-01-01", deficit.index.max())
+net_calories = d.net_calories()
+
+drange = pd.date_range("2022-01-01", net_calories.index.max())
 
 weight_loss = (
-    weight.weight.reindex(drange)
+    d.weight()
+    .weight.reindex(drange)
     .interpolate()
     .pct_change()
     .rolling(window=14, center=True)
@@ -161,7 +130,7 @@ weight_loss = (
     .dropna()
 )
 
-deficit_in_drange = deficit.reindex(weight_loss.index)
+deficit_in_drange = net_calories.reindex(weight_loss.index)
 
 print(weight_loss.corr(deficit_in_drange))
 plt.scatter(x=deficit_in_drange, y=weight_loss)

@@ -1,39 +1,11 @@
 # %% Imports
 
 from datetime import datetime, timedelta
-from os.path import expandvars
 
 import numpy as np
 import pandas as pd
 
-
-# %% Load
-
-
-def read_data(name: str, index_col: str | None = "date"):
-    return pd.read_table(
-        expandvars(f"$DIARY_DIR/data/{name}.tsv"),
-        parse_dates=["date"],
-        index_col=index_col,
-    )
-
-
-strength = read_data("strength", index_col=None)
-running = read_data("running")
-climbing = read_data("climbing")
-
-
-atracker_events = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-atracker_events["start"] = atracker_events.start.astype("datetime64[s, Europe/London]")
-atracker_events["date"] = pd.to_datetime(
-    (atracker_events.start - timedelta(hours=4)).dt.date
-)
-atracker_events = atracker_events.query("date >= '2020'")
-
-atracker = atracker_events.pivot_table(
-    values="duration", index="date", columns="category", aggfunc="sum"
-)
-atracker = atracker.fillna(atracker.mask(atracker.ffill().notna(), 0))
+import self_tracking.data as d
 
 
 # %% Graph
@@ -61,7 +33,8 @@ data = [
     (
         "Strength",
         (255, 50, 50),
-        strength.drop_duplicates("date")
+        d.strength()
+        .drop_duplicates("date")
         .set_index("date")
         .title.reindex(drange)
         .notna(),
@@ -69,22 +42,28 @@ data = [
     (
         "Running",
         (50, 255, 50),
-        (running.reindex(drange).distance / 5).clip(0, 1),
+        (d.running().reindex(drange).distance / 5).clip(0, 1),
     ),
     (
         "Climbing",
         (50, 50, 255),
-        (climbing.reindex(drange).duration / 120).clip(0, 1),
+        (d.climbing().reindex(drange).duration.dt.total_seconds() / (2 * 60 * 60)).clip(
+            0, 1
+        ),
     ),
     (
         "Project",
         (10, 200, 10),
-        (atracker.reindex(drange).project / (4 * 60 * 60)).clip(0, 1),
+        (d.atracker().reindex(drange).project.dt.total_seconds() / (4 * 60 * 60)).clip(
+            0, 1
+        ),
     ),
     (
         "Social",
         (10, 10, 200),
-        (atracker.reindex(drange).social / (6 * 60 * 60)).clip(0, 1),
+        (d.atracker().reindex(drange).social.dt.total_seconds() / (6 * 60 * 60)).clip(
+            0, 1
+        ),
     ),
 ]
 
