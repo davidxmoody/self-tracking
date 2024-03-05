@@ -21,6 +21,8 @@ def parse_duration(value: str):
 
 
 def get_program(d):
+    if d >= date(2024, 2, 27):
+        return "Hybrid"
     if d >= date(2023, 3, 6):
         return "GZCLP"
     if d >= date(2021, 9, 29):

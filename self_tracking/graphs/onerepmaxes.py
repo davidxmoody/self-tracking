@@ -2,16 +2,17 @@
 
 from datetime import timedelta
 from math import ceil
-from os.path import expandvars
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+import self_tracking.data as d
+
 
 # %% Load
 
-df = pd.read_table(expandvars("$DIARY_DIR/data/strength.tsv"), parse_dates=["date"])
+df = d.strength()
 
 programs = (
     df.drop_duplicates("date")
@@ -72,9 +73,6 @@ dfl = (
 
 
 # %% Graph
-
-plt.ion()
-plt.clf()
 
 sns.lineplot(
     dfl,
