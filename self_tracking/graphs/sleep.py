@@ -1,16 +1,13 @@
 # %% Imports
 
-from os.path import expandvars
-
 import matplotlib.pyplot as plt
-import pandas as pd
+
+import self_tracking.data as d
 
 
 # %% Load
 
-df = pd.read_table(
-    expandvars("$DIARY_DIR/data/sleep.tsv"), parse_dates=["date"], index_col="date"
-)
+df = d.sleep().resample("MS").mean().map(lambda x: x.total_seconds() / 60 / 60)
 
 
 # %% Graph
@@ -22,14 +19,12 @@ colors = {
     "Awake": (0.98, 0.42, 0.33),
 }
 
-monthly = df.resample("MS").mean() / 60 / 60
-
-ax = monthly.plot.bar(stacked=True, legend=False, color=colors.values())
+ax = df.plot.bar(stacked=True, legend=False, color=[colors[c] for c in df])
 
 ax.yaxis.grid(True, color="gray", alpha=0.3)
 ax.set_axisbelow(True)
 
-ax.set_xticklabels([d.strftime("%Y-%m") for d in monthly.index], fontsize=8, rotation=0)
+ax.set_xticklabels([d.strftime("%Y-%m") for d in df.index], fontsize=8, rotation=0)
 ax.tick_params(axis="x", bottom=False)
 
 handles, labels = ax.get_legend_handles_labels()
