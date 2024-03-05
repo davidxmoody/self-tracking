@@ -9,7 +9,7 @@ from gpxplotter import add_segment_to_map, create_folium_map, read_gpx_file
 # %% Load
 
 segments = []
-for f in glob(expandvars("$HOME/Downloads/export/*.gpx")):
+for f in glob(expandvars("$HOME/Downloads/apple_health_export/workout-routes/*.gpx")):
     segments.extend(next(read_gpx_file(f))["segments"])
 
 

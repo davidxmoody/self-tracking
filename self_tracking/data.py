@@ -32,7 +32,8 @@ def atracker_events():
     df = pd.read_table(filepath("atracker"))
     df["start"] = df.start.astype("datetime64[s, Europe/London]")
     df["date"] = pd.to_datetime((df.start - timedelta(hours=4)).dt.date)
-    return df.loc[df.date >= "2020"]
+    df["duration"] = pd.to_timedelta(df.duration, unit="s")
+    return df
 
 
 def climbing():
@@ -57,8 +58,9 @@ def eras():
 
 
 def holidays():
-    # TODO maybe add on duration (in days)?
-    return read_data("holidays", parse_dates=["start", "end"], index_col=None)
+    df = read_data("holidays", parse_dates=["start", "end"], index_col=None)
+    df["duration"] = df.end - df.start + timedelta(days=1)
+    return df
 
 
 def meditation():
@@ -80,7 +82,6 @@ def social():
 
 
 def streaks():
-    # TODO maybe rename this to be streaks_events and then have a separate pivot
     return read_data("streaks", index_col=None)
 
 
@@ -108,5 +109,4 @@ def atracker():
     df = atracker_events().pivot_table(
         values="duration", index="date", columns="category", aggfunc="sum"
     )
-    df = df.fillna(df.mask(df.ffill().notna(), 0))
-    return df.astype("Int64")  # TODO maybe use timedeltas here?
+    return df.fillna(df.mask(df.ffill().notna(), pd.to_timedelta(0)))
