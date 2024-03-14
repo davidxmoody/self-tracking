@@ -35,7 +35,7 @@ class Route:
 routes = [Route(fp) for fp in glob(expandvars("$DIARY_DIR/data/routes/*.gpx.gz"))]
 
 
-# %% Graphs
+# %% Map
 
 activity_colors = {
     "running": "red",
@@ -43,17 +43,44 @@ activity_colors = {
     "walking": "green",
 }
 
-map = folium.Map(tiles="CartoDB Positron")
+map = folium.Map(tiles=None)
 
-for route in routes:
-    if route.activity == "running":
-        folium.PolyLine(
-            route.path,
-            weight=5,
-            opacity=0.6,
-            color=activity_colors[route.activity],
-            tooltip=f"{route.date} {route.time} {route.activity}",
-        ).add_to(map)
+map.add_child(
+    folium.TileLayer("CartoDB PositronNoLabels", name="Greyscale map", show=True)
+)
+map.add_child(
+    folium.TileLayer("CartoDB VoyagerNoLabels", name="Colour map", show=False)
+)
+map.add_child(
+    folium.TileLayer(
+        "WaymarkedTrails.hiking", name="Hiking trails", show=False, overlay=True
+    )
+)
+map.add_child(
+    folium.TileLayer(
+        "WaymarkedTrails.cycling", name="Cycling trails", show=False, overlay=True
+    )
+)
+map.add_child(
+    folium.TileLayer(
+        "CartoDB PositronOnlyLabels", name="Place names", show=False, overlay=True
+    )
+)
+
+for activity, color in activity_colors.items():
+    group = folium.FeatureGroup(name=activity.title())
+    for route in routes:
+        if route.activity == activity:
+            folium.PolyLine(
+                route.path,
+                weight=5,
+                opacity=0.6,
+                color=activity_colors[route.activity],
+                tooltip=f"{route.date}",
+            ).add_to(group)
+    group.add_to(map)
+
+folium.LayerControl(collapsed=False).add_to(map)
 
 map.fit_bounds([[51.48, -2.67], [51.42, -2.56]])
 
