@@ -1,25 +1,16 @@
-import re
 import gzip
-from os.path import expandvars
+from os.path import basename, expandvars
 from zipfile import ZipFile
 
-pattern = r"^export/(\d{4}-\d{2}-\d{2}) (\d{2}-\d{2}-\d{2}) (\w+).gpx$"
 
-infilepath = expandvars("$HOME/Downloads/workout-routes/Export.zip")
+def main():
+    with ZipFile(expandvars("$HOME/Downloads/Export.zip")) as zipfile:
+        for route in zipfile.namelist():
+            filename = basename(route).replace(" ", "_").lower() + ".gz"
+            filepath = expandvars(f"$DIARY_DIR/data/routes/{filename}")
+            with gzip.open(filepath, "wb") as file:
+                file.write(zipfile.read(route))
 
-with ZipFile(infilepath) as infile:
-    for route in infile.namelist():
-        match = re.match(pattern, route)
-        if not match:
-            raise Exception(f"Could not parse route file name: '{route}'")
 
-        date = match.group(1)
-        time = match.group(2)
-        activity = match.group(3).lower()
-
-        outfilepath = expandvars(
-            f"$DIARY_DIR/data/routes/{date}_{time}_{activity}.gpx.gz"
-        )
-
-        with gzip.open(outfilepath, "wb") as outfile:
-            outfile.write(infile.read(route))
+if __name__ == "__main__":
+    main()
