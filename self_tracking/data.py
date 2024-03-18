@@ -108,6 +108,14 @@ def strength():
     return df
 
 
+def strength_programs():
+    df = read_data("strength-programs", parse_dates=["start"], index_col=None)
+    df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
+    df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
+    df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
+    return df[["start", "end", "duration", "name"]]
+
+
 def weight():
     return read_data("weight")
 

@@ -4,7 +4,6 @@ from datetime import timedelta
 from math import ceil
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 import self_tracking.data as d
@@ -14,15 +13,11 @@ import self_tracking.data as d
 
 df = d.strength()
 
-programs = (
-    df.drop_duplicates("date")
-    .groupby("program")
-    .agg({"date": ["first", "size"]})
-    .reset_index()
+workout_dates = df.date.unique()
+programs = d.strength_programs()
+programs["num"] = programs.apply(
+    lambda row: sum(1 for w in workout_dates if w >= row.start and w <= row.end), axis=1
 )
-programs.columns = ["name", "start", "num"]
-programs = programs.sort_values("start").reset_index(drop=True)
-programs["end"] = programs.start.shift(-1)
 
 tracked_exercises = {
     "Deadlift (Barbell)": "Deadlift",
@@ -90,15 +85,9 @@ right_edge = dfl.iloc[-1].date + timedelta(days=90)
 plt.ylim(bottom=0, top=top_edge)
 plt.xlim(left=left_edge, right=right_edge)
 
-# TODO perhaps consider using "standard" xticks and bringing back these custom lines
-# for start in programs.start.iloc[1:]:
-#     plt.axvline(x=start, linestyle="--", linewidth=1, color="black", alpha=0.3)
-
-for name, start, num, end in programs.values:
-    xmiddle = start + ((right_edge if pd.isnull(end) else end) - start) / 2
-
-    duration = (dfl.iloc[-1].date if pd.isnull(end) else end) - start
-    months = f"{round(duration.days / 30)}{'+' if pd.isnull(end) else ''}"
+for i, (start, end, duration, name, num) in enumerate(programs.values):
+    xmiddle = start + ((right_edge if i == len(programs) - 1 else end) - start) / 2
+    months = round(duration.days / 30)
 
     plt.text(
         x=xmiddle,
@@ -112,7 +101,7 @@ for name, start, num, end in programs.values:
     plt.text(
         x=xmiddle,
         y=top_edge - 11,
-        s=f"{num} workouts\n{months} months",
+        s=f"{num} workout{'' if num == 1 else 's'}\n{months} month{'' if months == 1 else 's'}",
         horizontalalignment="center",
         verticalalignment="top",
         fontsize=6,
