@@ -75,7 +75,7 @@ write_layer(cycling_outdoor_layer, "fitness", "cycling-outdoor")
 
 # %% Strength workouts
 
-strength = d.strength().drop_duplicates("date").set_index("date").program
+strength = d.strength().drop_duplicates("date").set_index("date").title
 strength_layer = strength.resample(**weekly).size() / 4
 write_layer(strength_layer, "fitness", "strength")
 
