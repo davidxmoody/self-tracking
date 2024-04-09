@@ -15,45 +15,61 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.linear_model import LinearRegression
 import plotly.io as pio
+import pandas as pd
 
 import self_tracking.data as d
 
-pio.renderers.default = "browser"
+# pio.renderers.default = "browser"
 
 
 # %%
 running = d.running()
-cycling_indoor = d.cycling_indoor()
-cycling_outdoor = d.cycling_outdoor()
+isnull = running.calories.isnull()
 
-running = d.running()
-running_not_null = running.dropna()
-
-X_train = running_not_null[["distance"]]
-y_train = running_not_null.calories
+X_train = running.loc[~isnull, ["distance"]]
+y_train = running.loc[~isnull].calories
 
 model = LinearRegression()
 model.fit(X_train, y_train)
 
-X_predict = running.loc[running.calories.isnull(), ["distance"]]
+X_predict = running.loc[isnull, ["distance"]]
 y_predict = model.predict(X_predict).astype(int)
 
-max_dist = X_train.sort_values(by="distance").iloc[-1:]
-max_dist.iloc[0, 0]
+running.loc[isnull, "calories"] = y_predict
 
-running.loc[running.calories.isnull(), "calories"] = y_predict
-running["predicted"] = running.duration.isnull()
+running["type"] = "running"
 
-fig = px.scatter(running, y="calories", x="distance", color="predicted")
-fig.add_shape(
-    type="line",
-    x0=0,
-    y0=model.intercept_,
-    x1=max_dist.iloc[0, 0],
-    y1=model.predict(max_dist)[0],
+
+# %%
+cycling_indoor = d.cycling_indoor()
+cycling_indoor["type"] = "cycling_indoor"
+
+cycling_outdoor = d.cycling_outdoor()
+cycling_outdoor["type"] = "cycling_outdoor"
+
+
+# %%
+sources = [
+    df.resample("MS").agg({"calories": "sum", "type": "first"})
+    for df in [running, cycling_outdoor, cycling_indoor]
+]
+exercise = pd.concat(sources).reset_index()[["date", "calories", "type"]]
+
+
+# %%
+active_calories = d.activity().active_calories.resample("MS").sum()
+exercise_calories = exercise.groupby("date").calories.sum()
+leftover_calories = pd.DataFrame(
+    {"calories": (active_calories - exercise_calories).dropna(), "type": "other"}
+).reset_index()
+
+
+# %%
+fig = go.Figure()
+fig = px.bar(
+    pd.concat([exercise, leftover_calories]), x="date", y="calories", color="type"
 )
 fig.show()
-
 
 # %%
 r = d.running().distance.resample("MS").sum()
