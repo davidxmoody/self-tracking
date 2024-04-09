@@ -47,7 +47,7 @@ exercises = {
     "strength": d.strength()
     .drop_duplicates("date")
     .set_index("date")
-    .program.resample(rule)
+    .title.resample(rule)
     .size(),
     "climbing": d.climbing().place.resample(rule).size(),
 }

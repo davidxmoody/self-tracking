@@ -18,6 +18,9 @@ setuptools = "^69.1.1"
 pyarrow = "^15.0.0"
 jupyterlab = "^4.1.4"
 jupytext = "^1.16.1"
+plotly = "^5.20.0"
+ipykernel = "^6.29.4"
+scikit-learn = "^1.4.1.post1"
 
 
 [build-system]
