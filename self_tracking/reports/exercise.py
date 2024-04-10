@@ -14,11 +14,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.linear_model import LinearRegression
-import plotly.io as pio
 import pandas as pd
 
 import self_tracking.data as d
 
+# import plotly.io as pio
 # pio.renderers.default = "browser"
 
 
@@ -57,18 +57,7 @@ exercise = pd.concat(sources).reset_index()[["date", "calories", "type"]]
 
 
 # %%
-active_calories = d.activity().active_calories.resample("MS").sum()
-exercise_calories = exercise.groupby("date").calories.sum()
-leftover_calories = pd.DataFrame(
-    {"calories": (active_calories - exercise_calories).dropna(), "type": "other"}
-).reset_index()
-
-
-# %%
-fig = go.Figure()
-fig = px.bar(
-    pd.concat([exercise, leftover_calories]), x="date", y="calories", color="type"
-)
+fig = px.bar(exercise, x="date", y="calories", color="type")
 fig.show()
 
 # %%
@@ -85,33 +74,27 @@ fig = make_subplots(
     subplot_titles=["Running", "Cycling", "Strength training", "Climbing"],
 )
 
-fig.add_trace(
-    go.Bar(x=r.index, y=r.values, name="Running", legendgroup="1"), row=1, col=1
-)
+fig.add_trace(go.Bar(x=r.index, y=r.values, name="Running"), row=1, col=1)
 fig.update_yaxes(title_text="Miles", range=[0, 80], row=1, col=1)
 
 fig.add_trace(
-    go.Bar(x=co.index, y=co.values, name="Cycling (outdoor)", legendgroup="2"),
+    go.Bar(x=co.index, y=co.values, name="Outdoor"),
     row=2,
     col=1,
 )
 fig.add_trace(
-    go.Bar(x=ci.index, y=ci.values, name="Cycling (indoor)", legendgroup="2"),
+    go.Bar(x=ci.index, y=ci.values, name="Indoor"),
     row=2,
     col=1,
 )
 fig.update_yaxes(title_text="Calories", range=[0, 6000], row=2, col=1)
 
-fig.add_trace(
-    go.Bar(x=s.index, y=s.values, name="Strength", legendgroup="3"), row=3, col=1
-)
+fig.add_trace(go.Bar(x=s.index, y=s.values, name="Strength"), row=3, col=1)
 fig.update_yaxes(title_text="Sessions", range=[0, 20], row=3, col=1)
 
-fig.add_trace(
-    go.Bar(x=c.index, y=c.values, name="Climbing", legendgroup="4"), row=4, col=1
-)
+fig.add_trace(go.Bar(x=c.index, y=c.values, name="Climbing"), row=4, col=1)
 fig.update_yaxes(title_text="Sessions", range=[0, 10], row=4, col=1)
 
-fig.update_layout(barmode="stack", legend_tracegroupgap=180)
+fig.update_layout(barmode="stack", showlegend=False)
 
 fig.show()
