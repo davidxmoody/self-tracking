@@ -1898,6 +1898,23 @@ packaging = "*"
 tenacity = ">=6.2.0"
 
 [[package]]
+name = "plotly-calplot"
+version = "0.1.20"
+description = "Calendar Plot made with Plotly"
+optional = false
+python-versions = ">=3.8,<4.0.0"
+files = [
+    {file = "plotly_calplot-0.1.20-py3-none-any.whl", hash = "sha256:8febc4abd3043fc83e9d767da0806c47ea85de6850f8ac99d0f5b3dd7753069a"},
+    {file = "plotly_calplot-0.1.20.tar.gz", hash = "sha256:db2ec8a0f256c237e99321f7a105d8f2628c97a3810b20e71aa49e5bff3956aa"},
+]
+
+[package.dependencies]
+numpy = ">=1.22.3,<2.0.0"
+pandas = "*"
+plotly = ">=5.4.0,<6.0.0"
+pytz = ">=2023.3.post1,<2024.0"
+
+[[package]]
 name = "prometheus-client"
 version = "0.20.0"
 description = "Python client for the Prometheus monitoring system."
@@ -2093,13 +2110,13 @@ files = [
 
 [[package]]
 name = "pytz"
-version = "2024.1"
+version = "2023.4"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
 files = [
-    {file = "pytz-2024.1-py2.py3-none-any.whl", hash = "sha256:328171f4e3623139da4983451950b28e95ac706e13f3f2630a879749e7a8b319"},
-    {file = "pytz-2024.1.tar.gz", hash = "sha256:2a29735ea9c18baf14b448846bde5a48030ed267578472d8955cd0e7443a9812"},
+    {file = "pytz-2023.4-py2.py3-none-any.whl", hash = "sha256:f90ef520d95e7c46951105338d918664ebfd6f1d995bd7d153127ce90efafa6a"},
+    {file = "pytz-2023.4.tar.gz", hash = "sha256:31d4583c4ed539cd037956140d695e42c033a19e984bfce9964a3f7d59bc2b40"},
 ]
 
 [[package]]
@@ -2893,4 +2910,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "6b9398dd5149a04ca542efe884f17c864dfb71ac5749d3456b8fb0ca794d21e6"
+content-hash = "6a32c6b2342cc926d8627d300093c20a2df05f8ef426f9ed806652454b7c5282"
