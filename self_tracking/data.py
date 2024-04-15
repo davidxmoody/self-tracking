@@ -36,6 +36,10 @@ def atracker_events():
     return df
 
 
+def atracker_categories():
+    return pd.read_table(filepath("atracker-categories"))
+
+
 def climbing():
     df = read_data("climbing")
     df["duration"] = pd.to_timedelta(df.duration, unit="m")
