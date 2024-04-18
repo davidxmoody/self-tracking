@@ -1,3 +1,5 @@
+from typing import cast
+from pandas import DataFrame
 from plotly_calplot import calplot
 import plotly.express as px
 
@@ -5,21 +7,26 @@ import self_tracking.data as d
 
 
 # %%
-atracker = d.atracker()["2020":]
+atracker = cast(
+    DataFrame, d.atracker()["2020":].apply(lambda x: x.dt.total_seconds() / (60 * 60))
+)
+
 color_map = dict(d.atracker_categories().values)
 
 
 # %%
-data = (atracker.reading.rename("category").dt.total_seconds() / 60 / 60).reset_index()
+category = "reading"
 
 fig = calplot(
-    data,
+    atracker.reset_index(),
     x="date",
-    y="category",
+    y=category,
     years_title=True,
     colorscale="blues",
     cmap_min=0,
 )
+
+fig.update_layout(title=f"ATracker: {category}")
 
 fig.show()
 
@@ -29,7 +36,6 @@ long = (
     atracker.drop(["sleep", "workout"], axis=1)
     .resample("QS")
     .sum()
-    .apply(lambda x: x.dt.total_seconds() / (60 * 60))
     .reset_index()
     .melt(id_vars="date", var_name="category", value_name="value")
 )
