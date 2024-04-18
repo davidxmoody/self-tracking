@@ -10,55 +10,11 @@
 # ---
 
 # %%
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from sklearn.linear_model import LinearRegression
-import pandas as pd
 
 import self_tracking.data as d
 
-# import plotly.io as pio
-# pio.renderers.default = "browser"
-
-
-# %%
-running = d.running()
-isnull = running.calories.isnull()
-
-X_train = running.loc[~isnull, ["distance"]]
-y_train = running.loc[~isnull].calories
-
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-X_predict = running.loc[isnull, ["distance"]]
-y_predict = model.predict(X_predict).astype(int)
-
-running.loc[isnull, "calories"] = y_predict
-
-running["type"] = "running"
-
-
-# %%
-cycling_indoor = d.cycling_indoor()
-cycling_indoor["type"] = "cycling_indoor"
-
-cycling_outdoor = d.cycling_outdoor()
-cycling_outdoor["type"] = "cycling_outdoor"
-
-
-# %%
-sources = [
-    df.resample("MS").agg({"calories": "sum", "type": "first"})
-    for df in [running, cycling_outdoor, cycling_indoor]
-]
-exercise = pd.concat(sources).reset_index()[["date", "calories", "type"]]
-
-
-# %%
-fig = px.bar(exercise, x="date", y="calories", color="type")
-fig.show()
 
 # %%
 r = d.running().distance.resample("MS").sum()
