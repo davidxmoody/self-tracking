@@ -1,5 +1,3 @@
-# %% Imports
-
 from datetime import date, timedelta
 from glob import glob
 from math import isnan
@@ -11,16 +9,11 @@ from zipfile import ZipFile
 import pandas as pd
 
 
-# %% Load
-
-
+# %%
 def getroot() -> ET.Element:
     fp = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
     with ZipFile(fp) as zf:
         return ET.parse(zf.open("apple_health_export/export.xml")).getroot()
-
-
-# %% Helpers
 
 
 def get_last_full_day(root: ET.Element):
@@ -87,9 +80,7 @@ def write_tsv(df: pd.DataFrame, name: str):
     df.to_csv(output_filename, sep="\t", float_format="%.2f")
 
 
-# %% Running
-
-
+# %%
 def extract_running(root: ET.Element) -> None:
     running_manual = pd.read_table(
         expandvars("$DIARY_DIR/misc/2024-02-14-old-running.tsv"),
@@ -137,9 +128,7 @@ def extract_running(root: ET.Element) -> None:
     write_tsv(running, "running")
 
 
-# %% Cycling
-
-
+# %%
 def extract_cycling(root: ET.Element) -> None:
     cycling_mixed = pd.DataFrame(
         {
@@ -168,9 +157,7 @@ def extract_cycling(root: ET.Element) -> None:
     write_tsv(cycling_outdoor, "cycling-outdoor")
 
 
-# %% Activity
-
-
+# %%
 def extract_activity(root: ET.Element) -> None:
     activity_sources = ["David’s Apple\xa0Watch"]
 
@@ -191,9 +178,7 @@ def extract_activity(root: ET.Element) -> None:
     write_tsv(activity, "activity")
 
 
-# %% Diet
-
-
+# %%
 def extract_diet(root: ET.Element) -> None:
     diet_sources = ["Calorie Counter", "YAZIO", "MyNetDiary"]
 
@@ -216,9 +201,7 @@ def extract_diet(root: ET.Element) -> None:
     write_tsv(diet, "diet")
 
 
-# %% Weight
-
-
+# %%
 def extract_weight(root: ET.Element) -> None:
     weight_sources = ["Withings"]
 
@@ -244,9 +227,7 @@ def extract_weight(root: ET.Element) -> None:
     write_tsv(weight, "weight")
 
 
-# %% Meditation
-
-
+# %%
 def parse_mindful_minutes(node):
     start = pd.to_datetime(node.attrib["startDate"])
     end = pd.to_datetime(node.attrib["endDate"])
@@ -269,9 +250,7 @@ def extract_meditation(root: ET.Element) -> None:
     write_tsv(meditation, "meditation")
 
 
-# %% Sleep
-
-
+# %%
 def extract_sleep(root: ET.Element) -> None:
     sleep_sources = ["David’s Apple\xa0Watch"]
 
@@ -306,9 +285,7 @@ def extract_sleep(root: ET.Element) -> None:
     write_tsv(sleep_pivot, "sleep")
 
 
-# %% Main
-
-
+# %%
 def main():
     root = getroot()
     extract_running(root)

@@ -1,5 +1,3 @@
-# %% Imports
-
 from datetime import timedelta
 from os.path import expandvars
 import re
@@ -7,8 +5,6 @@ import subprocess
 
 import pandas as pd
 
-
-# %% Get events
 
 event_regex = re.compile(
     r"^• (?P<category>[A-Za-z ]+)\n"
@@ -65,21 +61,23 @@ def get_events(since: str):
     return df[["start", "duration", "category"]]
 
 
-existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
+def main():
+    existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+    existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
 
-since = existing_df.iloc[-1, 0] - timedelta(days=7)
-new_df = get_events(since)
+    since = existing_df.iloc[-1, 0] - timedelta(days=7)
+    new_df = get_events(since)
 
-merged_df = (
-    pd.concat([existing_df, new_df])
-    .sort_values("start")
-    .drop_duplicates()
-    .reset_index(drop=True)
-)
+    merged_df = (
+        pd.concat([existing_df, new_df])
+        .sort_values("start")
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+    merged_df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)
+    print(f"Added {merged_df.shape[0] - existing_df.shape[0]} new events")
 
 
-# %% Write
-
-merged_df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)
-print(f"Added {merged_df.shape[0] - existing_df.shape[0]} new events")
+if __name__ == "__main__":
+    main()
