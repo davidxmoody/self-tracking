@@ -223,22 +223,6 @@ files = [
 jinja2 = ">=3"
 
 [[package]]
-name = "calmap"
-version = "0.0.11"
-description = "Calendar heatmaps from Pandas time series data"
-optional = false
-python-versions = "*"
-files = [
-    {file = "calmap-0.0.11-py2.py3-none-any.whl", hash = "sha256:4200ba7308c13dc5d94e444823334a10c396638bc03af2f6fce7c1cc45f20cf5"},
-    {file = "calmap-0.0.11.tar.gz", hash = "sha256:270ddedd9b470d3aef4328887ed60e1e3d3ac4fc8d3335874663d8d178d5b9bc"},
-]
-
-[package.dependencies]
-matplotlib = "*"
-numpy = "*"
-pandas = "*"
-
-[[package]]
 name = "certifi"
 version = "2024.2.2"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -2910,4 +2894,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "6a32c6b2342cc926d8627d300093c20a2df05f8ef426f9ed806652454b7c5282"
+content-hash = "2acc6d0598439e7cd9a1490962e49ba52c6d821178ff5d277a7c86af84dee59e"
