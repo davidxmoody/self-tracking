@@ -1,5 +1,3 @@
-# %% Imports
-
 from glob import glob
 from os import makedirs
 from os.path import basename, dirname, expandvars
@@ -11,8 +9,7 @@ import pandas as pd
 import self_tracking.data as d
 
 
-# %% Helpers
-
+# %%
 weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
 
 
@@ -32,8 +29,7 @@ def write_layer(series, category: str, name: str):
     )
 
 
-# %% Streaks
-
+# %%
 streaks = d.streaks()
 streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0.7, "missed": -3})
 
@@ -47,8 +43,7 @@ for streak in streaks_pivot:
     write_layer(streaks_pivot[streak], "streaks", streak)
 
 
-# %% ATracker
-
+# %%
 atracker = d.atracker().resample(**weekly).sum()
 
 for category in atracker:
@@ -58,14 +53,12 @@ for category in atracker:
     write_layer(layer, "atracker", category)
 
 
-# %% Running
-
+# %%
 running_layer = (d.running().distance.resample(**weekly).sum() ** 0.5) / 5
 write_layer(running_layer, "fitness", "running")
 
 
-# %% Cycling
-
+# %%
 cycling_indoor_layer = d.cycling_indoor().calories.resample(**weekly).sum() / 2000
 write_layer(cycling_indoor_layer, "fitness", "cycling-indoor")
 
@@ -73,36 +66,31 @@ cycling_outdoor_layer = d.cycling_outdoor().calories.resample(**weekly).sum() / 
 write_layer(cycling_outdoor_layer, "fitness", "cycling-outdoor")
 
 
-# %% Strength workouts
-
+# %%
 strength = d.strength().drop_duplicates("date").set_index("date").title
 strength_layer = strength.resample(**weekly).size() / 4
 write_layer(strength_layer, "fitness", "strength")
 
 
-# %% Meditation
-
+# %%
 meditation = d.meditation().duration
 meditation_layer = meditation.resample(**weekly).sum() / pd.to_timedelta(120, unit="m")
 write_layer(meditation_layer, "misc", "meditation")
 
 
-# %% Climbing
-
+# %%
 climbing_layer = (d.climbing().place.resample(**weekly).size() / 3) ** 0.5
 write_layer(climbing_layer, "fitness", "climbing")
 
 
-# %% Holidays
-
+# %%
 holidays_layer = (
     d.holidays().set_index("end").duration.dt.days.resample(**weekly).sum() / 5
 )
 write_layer(holidays_layer, "misc", "holidays")
 
 
-# %% Git
-
+# %%
 repos = glob(expandvars("$P_DIR/*/.git"))
 my_name = subprocess.run(
     ["git", "config", "user.name"], check=True, capture_output=True, text=True

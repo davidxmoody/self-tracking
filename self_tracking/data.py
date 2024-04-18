@@ -1,12 +1,7 @@
-# %% Imports
-
 from datetime import datetime, timedelta
 from os.path import expandvars
 
 import pandas as pd
-
-
-# %% Helpers
 
 
 def filepath(name: str):
@@ -19,9 +14,6 @@ def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
         parse_dates=parse_dates,
         index_col=index_col,
     )
-
-
-# %% Data
 
 
 def activity():
@@ -122,9 +114,6 @@ def strength_programs():
 
 def weight():
     return read_data("weight")
-
-
-# %% Derived data
 
 
 def net_calories():

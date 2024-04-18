@@ -1,5 +1,3 @@
-# %% Imports
-
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -8,9 +6,7 @@ import pandas as pd
 import self_tracking.data as d
 
 
-# %% Graph
-
-
+# %%
 def color_block(rgb: tuple[int, int, int], intensity: float):
     (r, g, b) = (round(x * intensity) for x in rgb)
     text_code = f"38;2;255;255;255"

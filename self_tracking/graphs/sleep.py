@@ -1,17 +1,13 @@
-# %% Imports
-
 import matplotlib.pyplot as plt
 
 import self_tracking.data as d
 
 
-# %% Load
-
+# %%
 df = d.sleep().resample("MS").mean().map(lambda x: x.total_seconds() / 60 / 60)
 
 
-# %% Graph
-
+# %%
 colors = {
     "Deep": (0.2, 0.23, 0.62),
     "Core": (0.07, 0.54, 0.97),

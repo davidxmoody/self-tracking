@@ -1,5 +1,3 @@
-# %% Imports
-
 from dataclasses import dataclass
 from glob import glob
 import gzip
@@ -9,9 +7,7 @@ import xml.etree.ElementTree as ET
 import folium
 
 
-# %% Load
-
-
+# %%
 @dataclass
 class Route:
     date: str
@@ -35,8 +31,7 @@ class Route:
 routes = [Route(fp) for fp in glob(expandvars("$DIARY_DIR/data/routes/*.gpx.gz"))]
 
 
-# %% Map
-
+# %%
 activity_colors = {
     "running": "red",
     "cycling": "blue",

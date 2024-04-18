@@ -1,5 +1,3 @@
-# %% Imports
-
 import calmap
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -7,16 +5,13 @@ import pandas as pd
 import self_tracking.data as d
 
 
-# %% Helpers
-
-
+# %%
 def set_window_title(title: str):
     if man := plt.get_current_fig_manager():
         man.set_window_title(title)
 
 
-# %% Combined graph
-
+# %%
 atracker = d.atracker()
 
 cats = ["project", "workout", "youtube"]
@@ -35,8 +30,7 @@ set_window_title("ATracker combined graph")
 plt.show()
 
 
-# %% Exercise type comparison
-
+# %%
 rule = "MS"
 label_format = "%Y-%m"
 
@@ -74,8 +68,7 @@ plt.subplots_adjust(hspace=0.5)
 plt.show()
 
 
-# %% Calorie deficit graph
-
+# %%
 calmap.calendarplot(
     d.net_calories(),
     daylabels="MTWTFSS",
@@ -88,8 +81,7 @@ set_window_title("Calorie deficit/surplus")
 plt.show()
 
 
-# %% Running graph
-
+# %%
 calmap.calendarplot(
     d.running().distance["2024":],
     dayticks=[],
@@ -100,8 +92,7 @@ set_window_title("Running")
 plt.show()
 
 
-# %% ATracker graph
-
+# %%
 cat = "project"
 
 calmap.calendarplot(
@@ -114,8 +105,7 @@ set_window_title(cat)
 plt.show()
 
 
-# %% Weight/deficit graph
-
+# %%
 net_calories = d.net_calories()
 
 drange = pd.date_range("2022-01-01", net_calories.index.max())

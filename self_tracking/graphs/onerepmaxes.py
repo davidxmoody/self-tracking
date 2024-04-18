@@ -1,5 +1,3 @@
-# %% Imports
-
 from datetime import timedelta
 from math import ceil
 
@@ -9,8 +7,7 @@ import seaborn as sns
 import self_tracking.data as d
 
 
-# %% Load
-
+# %%
 df = d.strength()
 
 workout_dates = df.date.unique()
@@ -36,8 +33,7 @@ df["exercise"] = df.exercise.map(tracked_exercises)
 df["onerepmax"] = df.weight / (1.0278 - 0.0278 * df.reps)
 
 
-# %% Format
-
+# %%
 # Exclude days where the exercise was done for high volume (and ignore warmups)
 dfl = (
     df.sort_values(["date", "exercise", "onerepmax"])
@@ -67,8 +63,7 @@ dfl = (
 )
 
 
-# %% Graph
-
+# %%
 sns.lineplot(
     dfl,
     x="date",
