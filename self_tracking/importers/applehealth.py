@@ -278,9 +278,13 @@ def extract_sleep(root: ET.Element) -> None:
 
     sleep["date"] = pd.to_datetime((sleep.end + timedelta(hours=8)).dt.date)
 
-    sleep_pivot = sleep.pivot_table(
-        index="date", columns="subtype", values="duration", aggfunc="sum"
-    ).astype(int)[["Deep", "Core", "REM", "Awake"]]
+    sleep_pivot = (
+        sleep.pivot_table(
+            index="date", columns="subtype", values="duration", aggfunc="sum"
+        )
+        .fillna(0)
+        .astype(int)[["Deep", "Core", "REM", "Awake"]]
+    )
 
     write_tsv(sleep_pivot, "sleep")
 
