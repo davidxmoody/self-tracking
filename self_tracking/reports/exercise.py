@@ -17,11 +17,13 @@ import self_tracking.data as d
 
 
 # %%
-r = d.running().distance.resample("MS").sum()
-co = d.cycling_outdoor().calories.resample("MS").sum()
-ci = d.cycling_indoor().calories.resample("MS").sum()
-s = d.strength().drop_duplicates("date").set_index("date").title.resample("MS").size()
-c = d.climbing().place.resample("MS").size()
+rule = "MS"
+
+r = d.running().distance.resample(rule).sum()
+co = d.cycling_outdoor().calories.resample(rule).sum()
+ci = d.cycling_indoor().calories.resample(rule).sum()
+s = d.strength().drop_duplicates("date").set_index("date").title.resample(rule).size()
+c = d.climbing().place.resample(rule).size()
 
 fig = make_subplots(
     rows=4,
