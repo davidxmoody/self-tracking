@@ -4,6 +4,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 import numpy as np
+from self_tracking.dashboard.calories import calories_figure
 
 from self_tracking.dashboard.weight import weight_figure
 
@@ -60,8 +61,8 @@ app.layout = html.Div(
                     children=[dcc.Graph(figure=weight_figure())],
                 ),
                 dcc.Tab(
-                    label="Tab 3",
-                    children=[html.Div("Tab 3 content goes here.")],
+                    label="Calories",
+                    children=[dcc.Graph(figure=calories_figure())],
                 ),
                 dcc.Tab(
                     label="Tab 4",
