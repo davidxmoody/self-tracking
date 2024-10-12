@@ -78,6 +78,7 @@ def gather_records(
 def write_tsv(df: pd.DataFrame, name: str):
     output_filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
     df.to_csv(output_filename, sep="\t", float_format="%.2f")
+    print(f"Written {name}.tsv ({len(df)} records)")
 
 
 # %%
