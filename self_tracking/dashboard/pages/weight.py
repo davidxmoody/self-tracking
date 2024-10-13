@@ -1,8 +1,12 @@
+import dash
+from dash import dcc
 import pandas as pd
 from typing import cast
 import plotly.graph_objects as go
-
 import self_tracking.data as d
+
+
+dash.register_page(__name__)
 
 
 def weight_figure():
@@ -51,10 +55,12 @@ def weight_figure():
     )
 
     fig.update_layout(
-        title="Weight and fat (7 day rolling average)",
         xaxis_title="Date",
         yaxis_title="Weight (lb)",
         hovermode="x unified",
     )
 
     return fig
+
+
+layout = dcc.Graph(figure=weight_figure())
