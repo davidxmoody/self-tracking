@@ -634,6 +634,17 @@ files = [
 ]
 
 [[package]]
+name = "dash-mantine-components"
+version = "0.14.5"
+description = "Plotly Dash Components based on Mantine"
+optional = false
+python-versions = "*"
+files = [
+    {file = "dash_mantine_components-0.14.5-py3-none-any.whl", hash = "sha256:8899ec8831a171b70bc39d283ffa5a0b2825ed8f67f9ef47aa68cbb892e51e74"},
+    {file = "dash_mantine_components-0.14.5.tar.gz", hash = "sha256:fc21d5c636ee3b239f3c2b828a65709335ee7e1b2b0a60f023234ea88c51cabe"},
+]
+
+[[package]]
 name = "dash-table"
 version = "5.0.0"
 description = "Dash table"
@@ -3317,4 +3328,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "1b65029a8ec2d966c9fc55b9fdc0408e823466ef63e31d6ef929d68b13554096"
+content-hash = "f469b066a9d298d222289f122a08b2e17ff424cc873c3c71dd041d4e63aceac5"
