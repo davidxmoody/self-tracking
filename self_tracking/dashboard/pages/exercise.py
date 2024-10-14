@@ -1,22 +1,11 @@
-# %% [markdown]
-# ---
-# title: "Exercise"
-# format:
-#   html:
-#     toc: true
-#     code-fold: true
-# jupyter: python3
-# highlight-style: github
-# ---
-
-# %%
+import dash
+from dash import dcc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
 import self_tracking.data as d
 
+dash.register_page(__name__)
 
-# %%
 rule = "MS"
 
 r = d.running().distance.resample(rule).sum()
@@ -45,7 +34,9 @@ fig.add_trace(
     row=2,
     col=1,
 )
-fig.update_yaxes(title_text="Calories", range=[0, 6000], row=2, col=1)
+fig.update_yaxes(
+    title_text="Calories", range=[0, 6000], row=2, col=1, tickformat=",.0s"
+)
 
 fig.add_trace(go.Bar(x=s.index, y=s.values, name="Strength"), row=3, col=1)
 fig.update_yaxes(title_text="Sessions", range=[0, 20], row=3, col=1)
@@ -55,4 +46,4 @@ fig.update_yaxes(title_text="Sessions", range=[0, 10], row=4, col=1)
 
 fig.update_layout(barmode="stack", showlegend=False)
 
-fig.show()
+layout = dcc.Graph(figure=fig, style={"height": "600px"})
