@@ -2,6 +2,7 @@ from datetime import timedelta
 from os.path import expandvars
 import re
 import subprocess
+from yaspin import yaspin
 
 import pandas as pd
 
@@ -62,21 +63,26 @@ def get_events(since: str):
 
 
 def main():
-    existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-    existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
+    with yaspin(text="ATracker") as spinner:
+        existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+        existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
 
-    since = existing_df.iloc[-1, 0] - timedelta(days=7)
-    new_df = get_events(since)
+        since = existing_df.iloc[-1, 0] - timedelta(days=7)
+        new_df = get_events(since)
 
-    merged_df = (
-        pd.concat([existing_df, new_df])
-        .sort_values("start")
-        .drop_duplicates()
-        .reset_index(drop=True)
-    )
+        merged_df = (
+            pd.concat([existing_df, new_df])
+            .sort_values("start")
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
 
-    merged_df.to_csv(expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False)
-    print(f"Added {merged_df.shape[0] - existing_df.shape[0]} new events")
+        merged_df.to_csv(
+            expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False
+        )
+        added_count = merged_df.shape[0] - existing_df.shape[0]
+        spinner.text += f" ({added_count} new events)"
+        spinner.ok("✔")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ plotly-calplot = "^0.1.20"
 statsmodels = "^0.14.2"
 dash = "^2.18.1"
 dash-mantine-components = "^0.14.5"
+yaspin = "^3.1.0"
 
 
 [build-system]
