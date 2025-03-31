@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from os.path import expandvars
+from typing import Any
 
 import pandas as pd
 
@@ -129,3 +130,21 @@ def atracker():
         values="duration", index="date", columns="category", aggfunc="sum"
     )
     return df.fillna(df.mask(df.ffill().notna(), pd.to_timedelta(0)))
+
+
+def atracker_heatmap(start_date="2020"):
+    categories = atracker_categories().category.tolist()
+    minutes_in_day = 24 * 60
+    heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
+
+    events = atracker_events()
+    events = events.loc[events.date > start_date]
+
+    for event in events.itertuples(index=False):
+        event: Any = event
+        start_minute = event.start.hour * 60 + event.start.minute
+        num_minutes = round(event.duration.total_seconds() / 60)
+        for minute in range(start_minute, start_minute + num_minutes):
+            heatmap.loc[minute % minutes_in_day, event.category] += 1
+
+    return heatmap
