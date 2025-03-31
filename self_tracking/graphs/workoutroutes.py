@@ -32,19 +32,45 @@ routes = [Route(fp) for fp in glob(expandvars("$DIARY_DIR/data/routes/*.gpx.gz")
 
 
 # %%
-activity_colors = {
-    "running": "red",
-    "cycling": "blue",
-    "walking": "green",
-}
-
-map = folium.Map(tiles=None)
+center_point = (51.44919535475215, -2.608414238285152)
+map = folium.Map(tiles=None, location=center_point, zoom_start=12)
 
 map.add_child(
-    folium.TileLayer("CartoDB PositronNoLabels", name="Greyscale map", show=True)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attr="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+        name="Satellite",
+        show=True,
+    )
 )
+map.add_child(folium.TileLayer("CartoDB VoyagerNoLabels", name="Colour", show=False))
 map.add_child(
-    folium.TileLayer("CartoDB VoyagerNoLabels", name="Colour map", show=False)
+    folium.TileLayer("CartoDB PositronNoLabels", name="Greyscale", show=False)
+)
+
+activity_colors: list[tuple[str, str, bool]] = [
+    ("cycling", "#FF00FF", True),
+    ("running", "#00FFFF", False),
+    ("walking", "#FFA500", False),
+]
+
+for activity, color, show in activity_colors:
+    group = folium.FeatureGroup(name=activity.title(), show=show)
+    for route in routes:
+        if route.activity == activity:
+            folium.PolyLine(
+                route.path,
+                weight=5,
+                opacity=0.6,
+                color=color,
+                tooltip=route.date,
+            ).add_to(group)
+    group.add_to(map)
+
+map.add_child(
+    folium.TileLayer(
+        "WaymarkedTrails.cycling", name="Cycling trails", show=False, overlay=True
+    )
 )
 map.add_child(
     folium.TileLayer(
@@ -53,30 +79,10 @@ map.add_child(
 )
 map.add_child(
     folium.TileLayer(
-        "WaymarkedTrails.cycling", name="Cycling trails", show=False, overlay=True
-    )
-)
-map.add_child(
-    folium.TileLayer(
         "CartoDB PositronOnlyLabels", name="Place names", show=False, overlay=True
     )
 )
 
-for activity, color in activity_colors.items():
-    group = folium.FeatureGroup(name=activity.title())
-    for route in routes:
-        if route.activity == activity:
-            folium.PolyLine(
-                route.path,
-                weight=5,
-                opacity=0.6,
-                color=activity_colors[route.activity],
-                tooltip=f"{route.date}",
-            ).add_to(group)
-    group.add_to(map)
-
 folium.LayerControl(collapsed=False).add_to(map)
-
-map.fit_bounds([[51.48, -2.67], [51.42, -2.56]])
 
 map.show_in_browser()
