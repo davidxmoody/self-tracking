@@ -1,7 +1,7 @@
 import self_tracking.data as d
 import plotly.express as px
 from datetime import datetime, timedelta
-import pytz
+from zoneinfo import ZoneInfo
 import pandas as pd
 
 # %%
@@ -32,12 +32,12 @@ events = pd.DataFrame(split_events)
 
 
 # %%
-tz = pytz.timezone("Europe/London")
-today = (datetime.now(tz) - timedelta(days=0)).replace(
-    hour=0, minute=0, second=0, microsecond=0
-)
-start_of_week = today - timedelta(days=today.weekday())
-end_of_week = start_of_week + timedelta(days=7)
+tz = ZoneInfo("Europe/London")
+now = datetime.now(tz)
+start_of_week = now - timedelta(days=now.weekday())
+start_of_week = start_of_week - timedelta(weeks=1)
+start_of_week = start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+end_of_week = start_of_week + timedelta(weeks=1)
 
 events_week = events.loc[
     (events["end"] >= start_of_week) & (events["start"] <= end_of_week)
@@ -78,6 +78,8 @@ fig = px.timeline(
 
 fig.update_xaxes(
     tickformat="%H:%M",
+    dtick=60 * 60 * 1000,
+    showgrid=True,
     range=[
         start_of_week.replace(hour=0, minute=0, second=0),
         start_of_week.replace(hour=23, minute=59, second=59),
