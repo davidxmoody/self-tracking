@@ -10,7 +10,7 @@ app = dash.Dash(__name__, use_pages=True, external_stylesheets=list(dmc.styles.A
 
 app.layout = dmc.MantineProvider(
     dmc.AppShell(
-        header={"height": "60px"},
+        header={"height": 60},
         padding="sm",
         children=[
             dmc.AppShellHeader(
@@ -23,7 +23,7 @@ app.layout = dmc.MantineProvider(
                             page["name"],
                             href=page["path"],
                             size="lg",
-                            underline=False,
+                            underline="always",
                         )
                         for page in page_registry.values()
                     ],
@@ -36,4 +36,4 @@ app.layout = dmc.MantineProvider(
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)
