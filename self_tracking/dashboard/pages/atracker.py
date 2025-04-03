@@ -35,7 +35,7 @@ layout = html.Div(
         dmc.RadioGroup(
             id="aggregation-op",
             children=[dmc.Radio(k, value=v) for k, v in aggregation_ops.items()],
-            value=aggregation_ops["Total"],
+            value=aggregation_ops["Daily average"],
             label="Aggregation operation:",
             size="sm",
         ),
@@ -48,7 +48,7 @@ layout = html.Div(
     Output("bar-chart", "figure"),
     [Input("aggregation-period", "value"), Input("aggregation-op", "value")],
 )
-def update_graph(rule: str = "MS", op: str = "sum"):
+def update_graph(rule: str = "MS", op: str = "mean"):
     atracker = cast(
         DataFrame,
         d.atracker()["2020":].apply(lambda x: x.dt.total_seconds() / (60 * 60)),
@@ -56,14 +56,14 @@ def update_graph(rule: str = "MS", op: str = "sum"):
 
     long = (
         atracker.drop(["sleep", "workout"], axis=1)
+        .resample("D")
+        .asfreq()
+        .fillna(0)
         .resample(rule, closed="left", label="left")
         .agg(op)
         .reset_index()
         .melt(id_vars="date", var_name="category", value_name="value")
     )
-
-    long["hours"] = long.value.fillna(0).astype(int)
-    long["minutes"] = ((long.value.fillna(0) - long.hours) * 60).astype(int)
 
     color_map = dict(d.atracker_categories().values)
 
@@ -79,9 +79,7 @@ def update_graph(rule: str = "MS", op: str = "sum"):
             "date": "Date",
             "category": "Category",
         },
-        custom_data=["hours", "minutes"],
     )
     fig.update_layout(legend={"traceorder": "reversed"})
-    # fig.update_traces(hovertemplate="%{customdata[0]}h %{customdata[1]}m")
 
     return fig
