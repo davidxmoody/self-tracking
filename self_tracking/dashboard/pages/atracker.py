@@ -65,7 +65,7 @@ def update_graph(rule: str = "MS", op: str = "mean"):
         .melt(id_vars="date", var_name="category", value_name="value")
     )
 
-    color_map = dict(d.atracker_categories().values)
+    color_map = d.atracker_categories()
 
     fig = px.bar(
         long,

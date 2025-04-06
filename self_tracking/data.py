@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from os.path import expandvars
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -22,15 +22,17 @@ def activity():
 
 
 def atracker_events():
-    df = pd.read_table(filepath("atracker"))
-    df["start"] = df.start.astype("datetime64[s, Europe/London]")
-    df["date"] = pd.to_datetime((df.start - timedelta(hours=4)).dt.date)
+    df = read_data("atracker", parse_dates=None, index_col=None)
+    start = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
+    df["start"] = start
+    df["date"] = pd.to_datetime((start - timedelta(hours=4)).dt.date)
     df["duration"] = pd.to_timedelta(df.duration, unit="s")
     return df
 
 
-def atracker_categories():
-    return pd.read_table(filepath("atracker-categories"))
+def atracker_categories() -> dict[str, str]:
+    df = read_data("atracker-categories", parse_dates=None, index_col="category")
+    return df.color.to_dict()
 
 
 def climbing():
@@ -133,7 +135,7 @@ def atracker():
 
 
 def atracker_heatmap(start_date="2020"):
-    categories = atracker_categories().category.tolist()
+    categories = list(atracker_categories())
     minutes_in_day = 24 * 60
     heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
 
@@ -145,6 +147,6 @@ def atracker_heatmap(start_date="2020"):
         start_minute = event.start.hour * 60 + event.start.minute
         num_minutes = round(event.duration.total_seconds() / 60)
         for minute in range(start_minute, start_minute + num_minutes):
-            heatmap.loc[minute % minutes_in_day, event.category] += 1
+            heatmap.loc[minute % minutes_in_day, event.category] += cast(Any, 1)
 
     return heatmap

@@ -39,14 +39,14 @@ streaks_pivot = (
     .mean()
 )
 
-for streak in streaks_pivot:
+for streak in streaks_pivot.columns:
     write_layer(streaks_pivot[streak], "streaks", streak)
 
 
 # %%
 atracker = d.atracker().resample(**weekly).sum()
 
-for category in atracker:
+for category in atracker.columns:
     non_zero = atracker[category][atracker[category] > pd.to_timedelta(0)]
     limit = non_zero.quantile(0.75)
     layer = non_zero.apply(lambda x: x / limit)
@@ -74,7 +74,7 @@ write_layer(strength_layer, "fitness", "strength")
 
 # %%
 meditation = d.meditation().duration
-meditation_layer = meditation.resample(**weekly).sum() / pd.to_timedelta(120, unit="m")
+meditation_layer = meditation.resample(**weekly).sum().dt.total_seconds() / (120 * 60)
 write_layer(meditation_layer, "misc", "meditation")
 
 

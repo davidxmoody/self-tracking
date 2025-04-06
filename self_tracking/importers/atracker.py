@@ -50,8 +50,8 @@ def get_events(since: str):
         for m in event_regex.finditer(result.stdout)
     )
 
-    df["start"] = df.start.astype("datetime64[s, Europe/London]")
-    df["end"] = df.end.astype("datetime64[s, Europe/London]")
+    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
+    df["end"] = pd.to_datetime(df.end, utc=True).dt.tz_convert("Europe/London")
     df["duration"] = (df.end - df.start).dt.total_seconds().astype(int)
 
     df.loc[df.category == "side project", "category"] = "project"
@@ -65,9 +65,11 @@ def get_events(since: str):
 def main():
     with yaspin(text="ATracker") as spinner:
         existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-        existing_df["start"] = existing_df.start.astype("datetime64[s, Europe/London]")
+        existing_df["start"] = pd.to_datetime(
+            existing_df.start, utc=True
+        ).dt.tz_convert("Europe/London")
 
-        since = existing_df.iloc[-1, 0] - timedelta(days=7)
+        since = existing_df.iloc[-1].start - timedelta(days=7)
         new_df = get_events(since)
 
         merged_df = (

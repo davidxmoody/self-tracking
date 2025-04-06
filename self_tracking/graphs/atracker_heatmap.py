@@ -7,7 +7,7 @@ hm = d.atracker_heatmap("2021-11-01")
 hm = hm.drop(columns=["work", "audiobook", "mindfulness"])
 
 # %%
-color_map = d.atracker_categories().set_index("category").color.to_dict()
+color_map = d.atracker_categories()
 
 # %%
 fig = make_subplots(

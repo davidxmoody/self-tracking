@@ -5,8 +5,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 # %%
-categories = d.atracker_categories()
-color_map = categories.set_index("category").color.to_dict()
+color_map = d.atracker_categories()
 events = d.atracker_events()
 events["end"] = events.start + events.duration
 
