@@ -119,6 +119,22 @@ def weight():
     return read_data("weight")
 
 
+def workouts():
+    cdf = climbing().reset_index()
+    cdf["type"] = "climbing"
+    # TODO parse actual start time from calendar
+    cdf["start"] = cdf.date.apply(lambda d: d.replace(hour=12)).dt.tz_localize(
+        "Europe/London"
+    )
+    cdf = cdf[["start", "type", "duration"]]
+
+    df = read_data("workouts", parse_dates=None, index_col=None)
+    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
+    df["duration"] = pd.to_timedelta(df.duration, unit="m").dt.round("1s")
+
+    return pd.concat([cdf, df]).sort_values("start")
+
+
 def net_calories():
     eaten = diet().calories
     activity_df = activity()

@@ -55,6 +55,17 @@ def parse_indoor(node):
     return indoor_node.attrib["value"] == "1"
 
 
+def parse_workout_type(node):
+    return {
+        "TraditionalStrengthTraining": "strength",
+        "HighIntensityIntervalTraining": "seven",
+        "FunctionalStrengthTraining": "seven",
+        "Running": "running",
+        "Cycling": "cycling",
+        "Walking": "hiking",
+    }[node.attrib["workoutActivityType"][21:]]
+
+
 def sum_by_date(df):
     return cast(pd.DataFrame, df.groupby("date").agg("sum"))
 
@@ -75,10 +86,26 @@ def gather_records(
     return series
 
 
-def write_tsv(df: pd.DataFrame, name: str):
+def write_tsv(df: pd.DataFrame, name: str, index=True):
     output_filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
-    df.to_csv(output_filename, sep="\t", float_format="%.2f")
+    df.to_csv(output_filename, sep="\t", float_format="%.2f", index=index)
     print(f"Written {name}.tsv ({len(df)} records)")
+
+
+# %%
+def extract_workouts(root: ET.Element) -> None:
+    workouts = pd.DataFrame(
+        {
+            "start": pd.to_datetime(node.attrib["startDate"], utc=True).tz_convert(
+                "Europe/London"
+            ),
+            "type": parse_workout_type(node),
+            "duration": parse_duration(node),
+        }
+        for node in root.iterfind("./Workout")
+    )
+
+    write_tsv(workouts, "workouts", index=False)
 
 
 # %%
@@ -293,6 +320,7 @@ def extract_sleep(root: ET.Element) -> None:
 # %%
 def main():
     root = getroot()
+    extract_workouts(root)
     extract_running(root)
     extract_cycling(root)
     extract_activity(root)
