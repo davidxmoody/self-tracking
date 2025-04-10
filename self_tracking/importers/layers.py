@@ -5,6 +5,7 @@ import subprocess
 from typing import Any
 
 import pandas as pd
+from yaspin import yaspin
 
 import self_tracking.data as d
 
@@ -124,11 +125,13 @@ def git_layers():
 
 # %%
 def main():
-    streaks_layers()
-    atracker_layers()
-    fitness_layers()
-    misc_layers()
-    git_layers()
+    with yaspin(text="Layers") as spinner:
+        streaks_layers()
+        atracker_layers()
+        fitness_layers()
+        misc_layers()
+        git_layers()
+        spinner.ok("✔")
 
 
 if __name__ == "__main__":
