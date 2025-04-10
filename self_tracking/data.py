@@ -80,7 +80,9 @@ def meditation():
 def running():
     df = read_data("running")
     df["calories"] = df.calories.astype("Int64")
-    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
+    df["duration"] = pd.to_timedelta(
+        (df.duration * 60).round().astype("Int64"), unit="s"
+    )
     return df
 
 
