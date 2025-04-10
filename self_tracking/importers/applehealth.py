@@ -115,6 +115,8 @@ def extract_running(root: ET.Element) -> None:
         parse_dates=["date"],
         index_col="date",
     )
+    running_manual["calories"] = (running_manual.distance * 110).astype(int)
+    running_manual["duration"] = running_manual.distance * 9
 
     running_garmin = pd.read_csv(
         expandvars("$DIARY_DIR/misc/2024-02-14-garmin-export.csv")
@@ -147,11 +149,7 @@ def extract_running(root: ET.Element) -> None:
         )
     )
 
-    running = (
-        pd.concat([running_manual, running_garmin, running_apple])
-        .astype({"calories": "Int64"})
-        .sort_index()
-    )
+    running = pd.concat([running_manual, running_garmin, running_apple]).sort_index()
 
     write_tsv(running, "running")
 
