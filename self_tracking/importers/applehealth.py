@@ -28,10 +28,20 @@ def parse_date(node):
     return pd.to_datetime(node.attrib["endDate"][0:10])
 
 
+def parse_start(node):
+    return pd.to_datetime(node.attrib["startDate"], utc=True).tz_convert(
+        "Europe/London"
+    )
+
+
 def parse_duration(node, expected_unit="min"):
     if node.attrib["durationUnit"] != expected_unit:
         raise Exception("Unexpected unit found")
     return float(node.attrib["duration"])
+
+
+def format_duration(duration):
+    return str(duration).replace("0 days ", "")
 
 
 def parse_distance(node, name: str, expected_unit="mi"):
@@ -254,26 +264,22 @@ def extract_weight(root: ET.Element) -> None:
 
 
 # %%
-def parse_mindful_minutes(node):
-    start = pd.to_datetime(node.attrib["startDate"])
-    end = pd.to_datetime(node.attrib["endDate"])
-    return round((end - start).total_seconds() / 60)
-
-
 def extract_meditation(root: ET.Element) -> None:
-    meditation = sum_by_date(
-        pd.DataFrame(
-            {
-                "date": parse_date(node),
-                "mindful_minutes": parse_mindful_minutes(node),
-            }
-            for node in root.iterfind(
-                "./Record[@type='HKCategoryTypeIdentifierMindfulSession']"
-            )
+    df = pd.DataFrame(
+        {
+            "start": parse_start(node),
+            "duration": pd.to_datetime(node.attrib["endDate"])
+            - pd.to_datetime(node.attrib["startDate"]),
+        }
+        for node in root.iterfind(
+            "./Record[@type='HKCategoryTypeIdentifierMindfulSession']"
         )
     )
 
-    write_tsv(meditation, "meditation")
+    df = df.loc[df.duration >= pd.to_timedelta(1, unit="m")]
+    df["duration"] = df.duration.apply(format_duration)
+
+    write_tsv(df, "meditation", index=False)
 
 
 # %%

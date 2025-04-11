@@ -73,11 +73,11 @@ def cycling_outdoor():
 
 
 def diet():
-    return read_data("diet")
+    return read_date_indexed("diet")
 
 
 def eras():
-    df = read_data("eras", parse_dates=["start"], index_col=None)
+    df = pd.read_table(filepath("eras"), parse_dates=["start"])
     df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
     df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
     df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
@@ -85,15 +85,22 @@ def eras():
 
 
 def holidays():
-    df = read_data("holidays", parse_dates=["start", "end"], index_col=None)
+    df = pd.read_table(filepath("holidays"), parse_dates=["start", "end"])
     df["duration"] = df.end - df.start + timedelta(days=1)
     return df[["start", "end", "duration", "name"]]
 
 
+def meditation_events():
+    # TODO change mindfulness name to meditation
+    mdf = read_events("meditation")
+    adf = atracker_events().query("category == 'mindfulness'")[["start", "duration"]]
+    return pd.concat([mdf, adf])
+
+
 def meditation():
-    df = read_data("meditation")
-    df["duration"] = pd.to_timedelta(df.mindful_minutes, unit="m")
-    return df[["duration"]]
+    df = meditation_events()
+    df["date"] = pd.to_datetime(df.start.dt.date)
+    return df[["date", "duration"]].groupby("date").sum()
 
 
 def running():
@@ -106,21 +113,18 @@ def running():
 
 
 def sleep():
-    df = read_data("sleep")
+    df = read_date_indexed("sleep")
     for column in df:
         df[column] = df[column].apply(lambda x: pd.to_timedelta(x, unit="s"))
     return df
 
 
-def social():
-    return read_data("social")
-
-
 def streaks():
-    return read_data("streaks", index_col=None)
+    return pd.read_table(filepath("streaks"), parse_dates=["date"])
 
 
 def strength():
+    # TODO
     df = read_data("strength", index_col=None)
     df["duration"] = pd.to_timedelta(df.duration, unit="m")
     df["time"] = pd.to_datetime(df.time, format="%H:%M:%S").dt.time
@@ -137,7 +141,7 @@ def strength_programs():
 
 
 def weight():
-    return read_data("weight")
+    return read_date_indexed("weight")
 
 
 def workouts():
@@ -145,11 +149,11 @@ def workouts():
     cdf["type"] = "climbing"
     cdf = cdf[["start", "type", "duration"]]
 
-    df = read_data("workouts", parse_dates=None, index_col=None)
-    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
-    df["duration"] = pd.to_timedelta(df.duration, unit="m").dt.round("1s")
+    wdf = read_data("workouts", parse_dates=None, index_col=None)
+    wdf["start"] = pd.to_datetime(wdf.start, utc=True).dt.tz_convert("Europe/London")
+    wdf["duration"] = pd.to_timedelta(wdf.duration, unit="m").dt.round("1s")
 
-    return pd.concat([cdf, df]).sort_values("start")
+    return pd.concat([cdf, wdf]).sort_values("start")
 
 
 def net_calories():
