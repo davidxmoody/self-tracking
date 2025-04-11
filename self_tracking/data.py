@@ -5,8 +5,23 @@ from typing import Any, cast
 import pandas as pd
 
 
+# %%
 def filepath(name: str):
     return expandvars(f"$DIARY_DIR/data/{name}.tsv")
+
+
+def read_date_indexed(name: str):
+    df = pd.read_table(filepath(name), parse_dates=["date"], index_col="date")
+    if "duration" in df.columns:
+        df["duration"] = pd.to_timedelta(df.duration)
+    return df
+
+
+def read_events(name: str):
+    df = pd.read_table(filepath(name))
+    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
+    df["duration"] = pd.to_timedelta(df.duration)
+    return df
 
 
 def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
@@ -17,29 +32,24 @@ def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
     )
 
 
+# %%
 def activity():
-    return read_data("activity")
+    return read_date_indexed("activity")
 
 
 def atracker_events():
-    df = read_data("atracker", parse_dates=None, index_col=None)
-    start = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
-    df["start"] = start
-    df["date"] = pd.to_datetime((start - timedelta(hours=4)).dt.date)
-    df["duration"] = pd.to_timedelta(df.duration, unit="s")
+    df = read_events("atracker")
+    df["date"] = pd.to_datetime((cast(Any, df.start) - timedelta(hours=4)).dt.date)
     return df
 
 
 def atracker_categories() -> dict[str, str]:
-    df = read_data("atracker-categories", parse_dates=None, index_col="category")
+    df = pd.read_table(filepath("atracker-categories"), index_col="category")
     return df.color.to_dict()
 
 
 def climbing_events():
-    df = read_data("climbing", parse_dates=None, index_col=None)
-    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
-    df["duration"] = pd.to_timedelta(df.duration)
-    return df
+    return read_events("climbing")
 
 
 def climbing():

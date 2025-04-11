@@ -52,7 +52,9 @@ def get_events(since: str):
 
     df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
     df["end"] = pd.to_datetime(df.end, utc=True).dt.tz_convert("Europe/London")
-    df["duration"] = (df.end - df.start).dt.total_seconds().astype(int)
+    df["duration"] = (df.end - df.start).apply(
+        lambda dur: str(dur).replace("0 days ", "")
+    )
 
     df.loc[df.category == "side project", "category"] = "project"
     df = df.loc[df.category != "cooking"]
