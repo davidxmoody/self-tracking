@@ -45,7 +45,7 @@ def update_graph(rule: str):
         .title.resample(rule)
         .size()
     )
-    c = d.climbing().place.resample(rule).size()
+    c = d.climbing().duration.resample(rule).sum().dt.total_seconds() / (60 * 60)
 
     fig = make_subplots(
         rows=4,
@@ -73,7 +73,7 @@ def update_graph(rule: str):
     fig.update_yaxes(title_text="Sessions", row=3, col=1)
 
     fig.add_trace(go.Bar(x=c.index, y=c.values, name="Climbing"), row=4, col=1)
-    fig.update_yaxes(title_text="Sessions", row=4, col=1)
+    fig.update_yaxes(title_text="Hours", row=4, col=1)
 
     fig.update_layout(barmode="stack", showlegend=False)
 

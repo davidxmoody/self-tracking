@@ -35,9 +35,18 @@ def atracker_categories() -> dict[str, str]:
     return df.color.to_dict()
 
 
+def climbing_events():
+    df = read_data("climbing", parse_dates=None, index_col=None)
+    df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
+    df["duration"] = pd.to_timedelta(df.duration)
+    return df
+
+
 def climbing():
-    df = read_data("climbing")
-    df["duration"] = pd.to_timedelta(df.duration, unit="m")
+    df = climbing_events()
+    df["date"] = pd.to_datetime(df.start.dt.date)
+    df = df[["date", "duration"]]
+    df = df.groupby("date").sum()
     return df
 
 
@@ -122,12 +131,8 @@ def weight():
 
 
 def workouts():
-    cdf = climbing().reset_index()
+    cdf = climbing_events()
     cdf["type"] = "climbing"
-    # TODO parse actual start time from calendar
-    cdf["start"] = cdf.date.apply(lambda d: d.replace(hour=12)).dt.tz_localize(
-        "Europe/London"
-    )
     cdf = cdf[["start", "type", "duration"]]
 
     df = read_data("workouts", parse_dates=None, index_col=None)

@@ -18,15 +18,19 @@ def main():
         df = pd.read_table(
             StringIO(result.stdout), header=None, names=["start", "end", "title"]
         )
+
         df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
         df["end"] = pd.to_datetime(df.end, utc=True).dt.tz_convert("Europe/London")
-        df["duration"] = ((df.end - df.start).dt.total_seconds() / 60).astype(int)
-        df["date"] = df.start.dt.date
+        df["duration"] = ((df.end - df.start)).apply(
+            lambda dur: str(dur).replace("0 days ", "")
+        )
         df["place"] = df.title.str.replace("Climbing at ", "")
-        df = df[["date", "duration", "place"]]
+
+        df = df[["start", "duration", "place"]]
 
         df.to_csv(expandvars("$DIARY_DIR/data/climbing.tsv"), sep="\t", index=False)
 
+        spinner.text += f" ({df.shape[0]} events)"
         spinner.ok("✔")
 
 

@@ -71,7 +71,7 @@ def fitness_layers():
     strength_layer = strength.resample(**weekly).size() / 4
     write_layer(strength_layer, "fitness", "strength")
 
-    climbing_layer = (d.climbing().place.resample(**weekly).size() / 3) ** 0.5
+    climbing_layer = (d.climbing().duration.resample(**weekly).sum().dt.total_seconds() / (60*60*3)) ** 0.5
     write_layer(climbing_layer, "fitness", "climbing")
 
 
