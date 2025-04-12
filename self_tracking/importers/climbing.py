@@ -28,7 +28,9 @@ def main():
 
         df = df[["start", "duration", "place"]]
 
-        df.to_csv(expandvars("$DIARY_DIR/data/climbing.tsv"), sep="\t", index=False)
+        df.to_csv(
+            expandvars("$DIARY_DIR/data/workouts/climbing.tsv"), sep="\t", index=False
+        )
 
         spinner.text += f" ({df.shape[0]} events)"
         spinner.ok("✔")

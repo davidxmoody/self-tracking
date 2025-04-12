@@ -49,7 +49,7 @@ def atracker_categories() -> dict[str, str]:
 
 
 def climbing_events():
-    return read_events("climbing")
+    return read_events("workouts/climbing")
 
 
 def climbing():
@@ -61,13 +61,13 @@ def climbing():
 
 
 def cycling_indoor():
-    df = read_data("cycling-indoor")
+    df = read_data("workouts/cycling-indoor")
     df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
     return df
 
 
 def cycling_outdoor():
-    df = read_data("cycling-outdoor")
+    df = read_data("workouts/cycling-outdoor")
     df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
     return df
 
@@ -104,7 +104,7 @@ def meditation():
 
 
 def running():
-    df = read_data("running")
+    df = read_data("workouts/running")
     df["calories"] = df.calories.astype("Int64")
     df["duration"] = pd.to_timedelta(
         (df.duration * 60).round().astype("Int64"), unit="s"
@@ -125,7 +125,7 @@ def streaks():
 
 def strength():
     # TODO
-    df = read_data("strength", index_col=None)
+    df = read_data("workouts/strength", index_col=None)
     df["duration"] = pd.to_timedelta(df.duration, unit="m")
     df["time"] = pd.to_datetime(df.time, format="%H:%M:%S").dt.time
     df["reps"] = df.reps.astype("Int64")
@@ -149,11 +149,13 @@ def workouts():
     cdf["type"] = "climbing"
     cdf = cdf[["start", "type", "duration"]]
 
-    wdf = read_data("workouts", parse_dates=None, index_col=None)
-    wdf["start"] = pd.to_datetime(wdf.start, utc=True).dt.tz_convert("Europe/London")
-    wdf["duration"] = pd.to_timedelta(wdf.duration, unit="m").dt.round("1s")
+    # TODO merge other workout events
+    # wdf = read_data("workouts", parse_dates=None, index_col=None)
+    # wdf["start"] = pd.to_datetime(wdf.start, utc=True).dt.tz_convert("Europe/London")
+    # wdf["duration"] = pd.to_timedelta(wdf.duration, unit="m").dt.round("1s")
 
-    return pd.concat([cdf, wdf]).sort_values("start")
+    # return pd.concat([cdf, wdf]).sort_values("start")
+    return cdf
 
 
 def net_calories():

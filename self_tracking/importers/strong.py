@@ -7,7 +7,7 @@ import pandas as pd
 from yaspin import yaspin
 
 input_path = Path("~/Downloads/strong.csv").expanduser()
-output_path = Path(expandvars("$DIARY_DIR/data/strength.tsv"))
+output_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
 
 
 def parse_duration(value: str):
