@@ -1,3 +1,4 @@
+# TODO use pandas timedelta instead
 from datetime import date, timedelta
 from glob import glob
 from math import isnan
@@ -37,7 +38,7 @@ def parse_start(node):
 def parse_duration(node, expected_unit="min"):
     if node.attrib["durationUnit"] != expected_unit:
         raise Exception("Unexpected unit found")
-    return float(node.attrib["duration"])
+    return pd.Timedelta(round(float(node.attrib["duration"]) * 60), unit="s")
 
 
 def format_duration(duration):
@@ -120,48 +121,54 @@ def write_tsv(df: pd.DataFrame, name: str, index=True):
 
 # %%
 def extract_running(root: ET.Element) -> None:
-    running_manual = pd.read_table(
+    manual_export = pd.read_table(
         expandvars("$DIARY_DIR/misc/2024-02-14-old-running.tsv"),
         parse_dates=["date"],
-        index_col="date",
     )
-    running_manual["calories"] = (running_manual.distance * 110).astype(int)
-    running_manual["duration"] = running_manual.distance * 9
+    running_manual = pd.DataFrame(
+        {
+            "start": (manual_export.date + pd.Timedelta(hours=12)).dt.tz_localize(
+                "Europe/London"
+            ),
+            "duration": pd.to_timedelta(manual_export.distance * 9, unit="m"),
+            "distance": manual_export.distance,
+            "calories": (manual_export.distance * 110).astype(int),
+        }
+    )
 
-    running_garmin = pd.read_csv(
+    garmin_export = pd.read_csv(
         expandvars("$DIARY_DIR/misc/2024-02-14-garmin-export.csv")
     ).query("`Activity Type` == 'Running'")
-
     running_garmin = pd.DataFrame(
         {
-            "date": pd.to_datetime(running_garmin.Date.str[0:10]),
-            "distance": running_garmin.Distance,
-            "calories": running_garmin.Calories.str.replace(",", "").astype(int),
-            "duration": running_garmin.Time.replace(r"\.\d*", "", regex=True).apply(
-                lambda v: sum(
-                    int(x) * 60 ** (1 - i) for i, x in enumerate(v.split(":"))
-                )
+            "start": pd.to_datetime(garmin_export.Date).dt.tz_localize("Europe/London"),
+            "duration": pd.to_timedelta(
+                garmin_export.Time.replace(r"\.\d*", "", regex=True)
             ),
+            "distance": garmin_export.Distance,
+            "calories": garmin_export.Calories.str.replace(",", "").astype(int),
         }
-    ).set_index("date")
+    )
 
-    running_apple = sum_by_date(
-        pd.DataFrame(
-            {
-                "date": parse_date(node),
-                "distance": parse_distance(node, "WalkingRunning"),
-                "calories": parse_calories(node),
-                "duration": parse_duration(node),
-            }
-            for node in root.iterfind(
-                "./Workout[@workoutActivityType='HKWorkoutActivityTypeRunning']"
-            )
+    running_apple = pd.DataFrame(
+        {
+            "start": parse_start(node),
+            "duration": parse_duration(node),
+            "distance": parse_distance(node, "WalkingRunning"),
+            "calories": parse_calories(node),
+        }
+        for node in root.iterfind(
+            "./Workout[@workoutActivityType='HKWorkoutActivityTypeRunning']"
         )
     )
 
-    running = pd.concat([running_manual, running_garmin, running_apple]).sort_index()
+    running = pd.concat(
+        [running_manual, running_garmin, running_apple], ignore_index=True
+    ).sort_values("start")
 
-    write_tsv(running, "workouts/running")
+    running["duration"] = running.duration.apply(format_duration)
+
+    write_tsv(running, "workouts/running", index=False)
 
 
 # %%

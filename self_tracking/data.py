@@ -21,7 +21,7 @@ def read_events(name: str):
     df = pd.read_table(filepath(name))
     df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
     df["duration"] = pd.to_timedelta(df.duration)
-    return df
+    return df.set_index("start")
 
 
 def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
@@ -38,8 +38,8 @@ def activity():
 
 
 def atracker_events():
-    df = read_events("atracker")
-    df["date"] = pd.to_datetime((cast(Any, df.start) - timedelta(hours=4)).dt.date)
+    df = read_events("atracker").reset_index()
+    df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
     return df
 
 
@@ -48,16 +48,8 @@ def atracker_categories() -> dict[str, str]:
     return df.color.to_dict()
 
 
-def climbing_events():
-    return read_events("workouts/climbing")
-
-
 def climbing():
-    df = climbing_events()
-    df["date"] = pd.to_datetime(df.start.dt.date)
-    df = df[["date", "duration"]]
-    df = df.groupby("date").sum()
-    return df
+    return read_events("workouts/climbing")
 
 
 def cycling_indoor():
@@ -104,12 +96,7 @@ def meditation():
 
 
 def running():
-    df = read_data("workouts/running")
-    df["calories"] = df.calories.astype("Int64")
-    df["duration"] = pd.to_timedelta(
-        (df.duration * 60).round().astype("Int64"), unit="s"
-    )
-    return df
+    return read_events("workouts/running")
 
 
 def sleep():
@@ -147,7 +134,7 @@ def weight():
 def workouts():
     cdf = climbing_events()
     cdf["type"] = "climbing"
-    cdf = cdf[["start", "type", "duration"]]
+    cdf = cdf[["type", "duration"]]
 
     # TODO merge other workout events
     # wdf = read_data("workouts", parse_dates=None, index_col=None)
