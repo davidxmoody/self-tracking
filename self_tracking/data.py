@@ -26,19 +26,7 @@ def read_events(name: str, index_col: str | None = "start"):
     return df
 
 
-def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
-    return pd.read_table(
-        filepath(name),
-        parse_dates=parse_dates,
-        index_col=index_col,
-    )
-
-
 # %%
-def activity():
-    return read_date_indexed("activity")
-
-
 def atracker_events():
     df = read_events("atracker", index_col=None)
     df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
@@ -50,6 +38,32 @@ def atracker_categories() -> dict[str, str]:
     return df.color.to_dict()
 
 
+def atracker():
+    df = atracker_events().pivot_table(
+        values="duration", index="date", columns="category", aggfunc="sum"
+    )
+    return df.fillna(df.mask(df.ffill().notna(), pd.to_timedelta(0)))
+
+
+def atracker_heatmap(start_date="2020"):
+    categories = list(atracker_categories())
+    minutes_in_day = 24 * 60
+    heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
+
+    events = atracker_events()
+    events = events.loc[events.date > start_date]
+
+    for event in events.itertuples(index=False):
+        event: Any = event
+        start_minute = event.start.hour * 60 + event.start.minute
+        num_minutes = round(event.duration.total_seconds() / 60)
+        for minute in range(start_minute, start_minute + num_minutes):
+            heatmap.loc[minute % minutes_in_day, event.category] += cast(Any, 1)
+
+    return heatmap
+
+
+# %%
 def climbing():
     return read_events("workouts/climbing")
 
@@ -59,13 +73,69 @@ def cycling_indoor():
 
 
 def cycling_outdoor():
+    # TODO rename this to just "cycling"
     return read_events("workouts/cycling-outdoor")
+
+
+def running():
+    return read_events("workouts/running")
+
+
+def strength():
+    df = read_events("workouts/strength", index_col=None)
+    df["reps"] = df.reps.astype("Int64")
+    return df
+
+
+def strength_programs():
+    df = pd.read_table(filepath("strength-programs"), parse_dates=["start"])
+    df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
+    df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
+    df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
+    return df[["start", "end", "duration", "name"]]
+
+
+def workouts():
+    events = [
+        climbing().assign(type="climbing"),
+        cycling_indoor().assign(type="cycling_indoor"),
+        cycling_outdoor().assign(type="cycling"),
+        running().assign(type="running"),
+        strength().drop_duplicates("start").set_index("start").assign(type="strength"),
+    ]
+
+    return pd.concat([df[["duration", "type"]] for df in events]).sort_index()
+
+
+# %%
+def activity():
+    return read_date_indexed("activity")
 
 
 def diet():
     return read_date_indexed("diet")
 
 
+def sleep():
+    df = read_date_indexed("sleep")
+    for column in df:
+        df[column] = df[column].apply(lambda x: pd.to_timedelta(x, unit="s"))
+    return df
+
+
+def weight():
+    return read_date_indexed("weight")
+
+
+def net_calories():
+    eaten = diet().calories
+    activity_df = activity()
+    active = activity_df.active_calories
+    basal = activity_df.basal_calories
+    return (eaten - active - basal).dropna().astype(int)
+
+
+# %%
 def eras():
     df = pd.read_table(filepath("eras"), parse_dates=["start"])
     df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
@@ -94,79 +164,5 @@ def meditation():
     return df[["date", "duration"]].groupby("date").sum()
 
 
-def running():
-    return read_events("workouts/running")
-
-
-def sleep():
-    df = read_date_indexed("sleep")
-    for column in df:
-        df[column] = df[column].apply(lambda x: pd.to_timedelta(x, unit="s"))
-    return df
-
-
 def streaks():
     return pd.read_table(filepath("streaks"), parse_dates=["date"])
-
-
-def strength():
-    df = read_events("workouts/strength", index_col=None)
-    df["reps"] = df.reps.astype("Int64")
-    return df
-
-
-def strength_programs():
-    df = pd.read_table(filepath("strength-programs"), parse_dates=["start"])
-    df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
-    df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
-    df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
-    return df[["start", "end", "duration", "name"]]
-
-
-def weight():
-    return read_date_indexed("weight")
-
-
-def workouts():
-    events = [
-        climbing().assign(type="climbing"),
-        cycling_indoor().assign(type="cycling_indoor"),
-        cycling_outdoor().assign(type="cycling"),
-        running().assign(type="running"),
-        strength().drop_duplicates("start").set_index("start").assign(type="strength"),
-    ]
-
-    return pd.concat([df[["duration", "type"]] for df in events]).sort_index()
-
-
-def net_calories():
-    eaten = diet().calories
-    activity_df = activity()
-    active = activity_df.active_calories
-    basal = activity_df.basal_calories
-    return (eaten - active - basal).dropna().astype(int)
-
-
-def atracker():
-    df = atracker_events().pivot_table(
-        values="duration", index="date", columns="category", aggfunc="sum"
-    )
-    return df.fillna(df.mask(df.ffill().notna(), pd.to_timedelta(0)))
-
-
-def atracker_heatmap(start_date="2020"):
-    categories = list(atracker_categories())
-    minutes_in_day = 24 * 60
-    heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
-
-    events = atracker_events()
-    events = events.loc[events.date > start_date]
-
-    for event in events.itertuples(index=False):
-        event: Any = event
-        start_minute = event.start.hour * 60 + event.start.minute
-        num_minutes = round(event.duration.total_seconds() / 60)
-        for minute in range(start_minute, start_minute + num_minutes):
-            heatmap.loc[minute % minutes_in_day, event.category] += cast(Any, 1)
-
-    return heatmap
