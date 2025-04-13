@@ -53,15 +53,11 @@ def climbing():
 
 
 def cycling_indoor():
-    df = read_data("workouts/cycling-indoor")
-    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
-    return df
+    return read_events("workouts/cycling-indoor")
 
 
 def cycling_outdoor():
-    df = read_data("workouts/cycling-outdoor")
-    df["duration"] = pd.to_timedelta(round(df.duration * 60), unit="s")
-    return df
+    return read_events("workouts/cycling-outdoor")
 
 
 def diet():

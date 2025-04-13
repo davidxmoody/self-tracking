@@ -103,22 +103,6 @@ def write_tsv(df: pd.DataFrame, name: str, index=True):
     print(f"Written {name}.tsv ({len(df)} records)")
 
 
-# # %%
-# def extract_workouts(root: ET.Element) -> None:
-#     workouts = pd.DataFrame(
-#         {
-#             "start": pd.to_datetime(node.attrib["startDate"], utc=True).tz_convert(
-#                 "Europe/London"
-#             ),
-#             "type": parse_workout_type(node),
-#             "duration": parse_duration(node),
-#         }
-#         for node in root.iterfind("./Workout")
-#     )
-
-#     write_tsv(workouts, "workouts", index=False)
-
-
 # %%
 def extract_running(root: ET.Element) -> None:
     manual_export = pd.read_table(
@@ -175,10 +159,10 @@ def extract_running(root: ET.Element) -> None:
 def extract_cycling(root: ET.Element) -> None:
     cycling_mixed = pd.DataFrame(
         {
-            "date": parse_date(node),
-            "calories": parse_calories(node),
+            "start": parse_start(node),
             "duration": parse_duration(node),
             "distance": parse_distance(node, "Cycling"),
+            "calories": parse_calories(node),
             "indoor": parse_indoor(node),
         }
         for node in root.iterfind(
@@ -186,18 +170,18 @@ def extract_cycling(root: ET.Element) -> None:
         )
     )
 
-    cycling_indoor = sum_by_date(
-        cycling_mixed[cycling_mixed["indoor"] == True].drop(
-            ["distance", "indoor"], axis=1
-        )
+    cycling_mixed["duration"] = cycling_mixed.duration.apply(format_duration)
+
+    cycling_indoor = cycling_mixed[cycling_mixed["indoor"] == True].drop(
+        ["distance", "indoor"], axis=1
     )
 
-    cycling_outdoor = sum_by_date(
-        cycling_mixed[cycling_mixed["indoor"] == False].drop(["indoor"], axis=1)
+    cycling_outdoor = cycling_mixed[cycling_mixed["indoor"] == False].drop(
+        ["indoor"], axis=1
     )
 
-    write_tsv(cycling_indoor, "workouts/cycling-indoor")
-    write_tsv(cycling_outdoor, "workouts/cycling-outdoor")
+    write_tsv(cycling_indoor, "workouts/cycling-indoor", index=False)
+    write_tsv(cycling_outdoor, "workouts/cycling-outdoor", index=False)
 
 
 # %%
@@ -331,7 +315,6 @@ def extract_sleep(root: ET.Element) -> None:
 # %%
 def main():
     root = getroot()
-    extract_workouts(root)
     extract_running(root)
     extract_cycling(root)
     extract_activity(root)
