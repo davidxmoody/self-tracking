@@ -17,11 +17,13 @@ def read_date_indexed(name: str):
     return df
 
 
-def read_events(name: str):
+def read_events(name: str, index_col: str | None = "start"):
     df = pd.read_table(filepath(name))
     df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
     df["duration"] = pd.to_timedelta(df.duration)
-    return df.set_index("start")
+    if index_col:
+        df = df.set_index(index_col)
+    return df
 
 
 def read_data(name: str, parse_dates=["date"], index_col: str | None = "date"):
@@ -38,7 +40,7 @@ def activity():
 
 
 def atracker_events():
-    df = read_events("atracker").reset_index()
+    df = read_events("atracker", index_col=None)
     df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
     return df
 
@@ -80,6 +82,7 @@ def holidays():
 
 def meditation_events():
     # TODO change mindfulness name to meditation
+    # TODO fix indexes
     mdf = read_events("meditation")
     adf = atracker_events().query("category == 'mindfulness'")[["start", "duration"]]
     return pd.concat([mdf, adf])
@@ -107,16 +110,13 @@ def streaks():
 
 
 def strength():
-    # TODO
-    df = read_data("workouts/strength", index_col=None)
-    df["duration"] = pd.to_timedelta(df.duration, unit="m")
-    df["time"] = pd.to_datetime(df.time, format="%H:%M:%S").dt.time
+    df = read_events("workouts/strength", index_col=None)
     df["reps"] = df.reps.astype("Int64")
     return df
 
 
 def strength_programs():
-    df = read_data("strength-programs", parse_dates=["start"], index_col=None)
+    df = pd.read_table(filepath("strength-programs"), parse_dates=["start"])
     df["end"] = df.start.shift(-1) - pd.to_timedelta(1, unit="D")
     df["end"] = df.end.fillna(pd.to_datetime(datetime.now().date()))
     df["duration"] = df.end - df.start + pd.to_timedelta(1, unit="D")
@@ -128,17 +128,15 @@ def weight():
 
 
 def workouts():
-    cdf = climbing_events()
-    cdf["type"] = "climbing"
-    cdf = cdf[["type", "duration"]]
+    events = [
+        climbing().assign(type="climbing"),
+        cycling_indoor().assign(type="cycling_indoor"),
+        cycling_outdoor().assign(type="cycling"),
+        running().assign(type="running"),
+        strength().drop_duplicates("start").set_index("start").assign(type="strength"),
+    ]
 
-    # TODO merge other workout events
-    # wdf = read_data("workouts", parse_dates=None, index_col=None)
-    # wdf["start"] = pd.to_datetime(wdf.start, utc=True).dt.tz_convert("Europe/London")
-    # wdf["duration"] = pd.to_timedelta(wdf.duration, unit="m").dt.round("1s")
-
-    # return pd.concat([cdf, wdf]).sort_values("start")
-    return cdf
+    return pd.concat([df[["duration", "type"]] for df in events]).sort_index()
 
 
 def net_calories():

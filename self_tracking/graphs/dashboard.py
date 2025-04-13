@@ -25,6 +25,8 @@ today = datetime.today().date()
 start = today - timedelta(days=today.weekday() + 7 * (num_weeks - 1))
 drange = pd.date_range(start, today, freq="D")
 
+# TODO fix this
+
 data = [
     (
         "Strength",

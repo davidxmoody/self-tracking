@@ -17,7 +17,7 @@ def parse_duration(value: str):
             minutes += 60 * int(part[:-1])
         elif part[-1] == "m":
             minutes += int(part[:-1])
-    return minutes
+    return str(pd.Timedelta(minutes, unit="m")).replace("0 days ", "")
 
 
 def main():
@@ -31,10 +31,9 @@ def main():
 
         df = pd.DataFrame(
             {
-                "date": df.Date.dt.date,
-                "time": df.Date.dt.time,
-                "title": df["Workout Name"],
+                "start": pd.to_datetime(df.Date).dt.tz_localize("Europe/London"),
                 "duration": df.Duration.apply(parse_duration),
+                "title": df["Workout Name"],
                 "exercise": df["Exercise Name"],
                 "weight": df.Weight.replace(0, np.nan),
                 "reps": df.Reps.replace(0, np.nan),
@@ -44,8 +43,8 @@ def main():
 
         # Fix period where I thought old barbell was heavier than it actually was
         df.loc[
-            (df.date >= date(2020, 10, 30))
-            & (df.date < date(2022, 3, 11))
+            (df.start >= "2020-10-30")
+            & (df.start < "2022-03-11")
             & (df.exercise.str.contains("Barbell")),
             "weight",
         ] -= 2.5

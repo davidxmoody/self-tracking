@@ -40,8 +40,8 @@ def update_graph(rule: str):
     ci = d.cycling_indoor().calories.resample(rule).sum()
     s = (
         d.strength()
-        .drop_duplicates("date")
-        .set_index("date")
+        .drop_duplicates("start")
+        .set_index("start")
         .title.resample(rule)
         .size()
     )

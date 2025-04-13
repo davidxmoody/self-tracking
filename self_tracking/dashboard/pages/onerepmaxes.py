@@ -4,10 +4,12 @@ from datetime import timedelta
 from math import ceil
 import self_tracking.data as d
 import plotly.express as px
+import pandas as pd
 
 dash.register_page(__name__)
 
 df = d.strength()
+df["date"] = pd.to_datetime(df.start.dt.date)
 
 workout_dates = df.date.unique()
 programs = d.strength_programs()

@@ -15,11 +15,7 @@ weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
 
 
 def stringify_index(series: pd.Series):
-    return (
-        series.reset_index()
-        .astype({series.index.name: "str"})
-        .set_index(series.index.name)[series.name or 0]
-    )
+    return series.rename(lambda x: str(x.date()))
 
 
 def write_layer(series, category: str, name: str):
@@ -57,22 +53,17 @@ def atracker_layers():
 
 
 # %%
-def fitness_layers():
-    running_layer = (d.running().distance.resample(**weekly).sum() ** 0.5) / 5
-    write_layer(running_layer, "fitness", "running")
+def workout_layers():
+    workouts = d.workouts()
 
-    cycling_indoor_layer = d.cycling_indoor().calories.resample(**weekly).sum() / 2000
-    write_layer(cycling_indoor_layer, "fitness", "cycling-indoor")
-
-    cycling_outdoor_layer = d.cycling_outdoor().calories.resample(**weekly).sum() / 2000
-    write_layer(cycling_outdoor_layer, "fitness", "cycling-outdoor")
-
-    strength = d.strength().drop_duplicates("date").set_index("date").title
-    strength_layer = strength.resample(**weekly).size() / 4
-    write_layer(strength_layer, "fitness", "strength")
-
-    climbing_layer = (d.climbing().duration.resample(**weekly).sum().dt.total_seconds() / (60*60*3)) ** 0.5
-    write_layer(climbing_layer, "fitness", "climbing")
+    for workout_type in workouts.type.unique():
+        durations = (
+            workouts.query(f"type == '{workout_type}'")
+            .duration.resample(**weekly)
+            .sum()
+        )
+        layer = durations / durations.quantile(0.95)
+        write_layer(layer, "workouts", workout_type)
 
 
 # %%
@@ -128,7 +119,7 @@ def main():
     with yaspin(text="Layers") as spinner:
         streaks_layers()
         atracker_layers()
-        fitness_layers()
+        workout_layers()
         misc_layers()
         git_layers()
         spinner.ok("✔")
