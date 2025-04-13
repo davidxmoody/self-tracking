@@ -4,7 +4,7 @@ from plotly.subplots import make_subplots
 
 # %%
 hm = d.atracker_heatmap("2021-11-01")
-hm = hm.drop(columns=["work", "audiobook", "mindfulness"])
+hm = hm.drop(columns=["work", "audiobook"])
 
 # %%
 color_map = d.atracker_categories()

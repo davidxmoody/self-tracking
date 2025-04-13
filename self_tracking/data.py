@@ -28,7 +28,18 @@ def read_events(name: str, index_col: str | None = "start"):
 
 # %%
 def atracker_events():
-    df = read_events("atracker", index_col=None)
+    df = (
+        pd.concat(
+            [
+                workouts()[["duration"]].reset_index().assign(category="workout"),
+                read_events("meditation", index_col=None).assign(category="meditation"),
+                read_events("atracker", index_col=None).query("category != 'workout'"),
+            ]
+        )
+        .sort_values("start")
+        .reset_index(drop=True)
+    )
+
     df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
     return df
 
@@ -148,20 +159,6 @@ def holidays():
     df = pd.read_table(filepath("holidays"), parse_dates=["start", "end"])
     df["duration"] = df.end - df.start + timedelta(days=1)
     return df[["start", "end", "duration", "name"]]
-
-
-def meditation_events():
-    # TODO change mindfulness name to meditation
-    # TODO fix indexes
-    mdf = read_events("meditation")
-    adf = atracker_events().query("category == 'mindfulness'")[["start", "duration"]]
-    return pd.concat([mdf, adf])
-
-
-def meditation():
-    df = meditation_events()
-    df["date"] = pd.to_datetime(df.start.dt.date)
-    return df[["date", "duration"]].groupby("date").sum()
 
 
 def streaks():

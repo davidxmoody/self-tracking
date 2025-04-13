@@ -68,12 +68,6 @@ def workout_layers():
 
 # %%
 def misc_layers():
-    meditation = d.meditation().duration
-    meditation_layer = meditation.resample(**weekly).sum().dt.total_seconds() / (
-        120 * 60
-    )
-    write_layer(meditation_layer, "misc", "meditation")
-
     holidays_layer = (
         d.holidays().set_index("end").duration.dt.days.resample(**weekly).sum() / 5
     )

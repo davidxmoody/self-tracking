@@ -55,7 +55,7 @@ def update_graph(rule: str = "MS", op: str = "mean"):
     )
 
     long = (
-        atracker.drop(["sleep", "workout"], axis=1)
+        atracker.drop(["sleep"], axis=1)
         .resample("D")
         .asfreq()
         .fillna(0)
