@@ -106,7 +106,7 @@ def write_tsv(df: pd.DataFrame, name: str, index=True):
 # %%
 def extract_running(root: ET.Element) -> None:
     manual_export = pd.read_table(
-        expandvars("$DIARY_DIR/misc/2024-02-14-old-running.tsv"),
+        expandvars("$DIARY_DIR/data/exports/2024-02-14-old-running.tsv"),
         parse_dates=["date"],
     )
     running_manual = pd.DataFrame(
@@ -121,7 +121,7 @@ def extract_running(root: ET.Element) -> None:
     )
 
     garmin_export = pd.read_csv(
-        expandvars("$DIARY_DIR/misc/2024-02-14-garmin-export.csv")
+        expandvars("$DIARY_DIR/data/exports/2024-02-14-garmin-export.csv")
     ).query("`Activity Type` == 'Running'")
     running_garmin = pd.DataFrame(
         {
