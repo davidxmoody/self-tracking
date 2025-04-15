@@ -1,11 +1,13 @@
 from .atracker import main as atracker_main
+from .layers import main as layers_main
 from .routes import main as routes_main
 from .strong import main as strong_main
-from .layers import main as layers_main
+from .workouts import main as workouts_main
 
 
 def main():
     atracker_main()
+    workouts_main()
     routes_main()
     strong_main()
     layers_main()
