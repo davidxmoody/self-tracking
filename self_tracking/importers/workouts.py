@@ -39,13 +39,13 @@ def main():
         for workout_type, group in df.groupby("Activity"):
             match workout_type:
                 case "Cycling":
-                    workout_df = d.cycling_outdoor()
+                    workout_df = d.cycling()
                     size_before = workout_df.shape[0]
                     workout_df = pd.concat(
                         [workout_df, group[["duration", "distance", "calories"]]]
                     )
                     workout_df = workout_df[~workout_df.index.duplicated()].sort_index()
-                    write_tsv(workout_df, "cycling-outdoor")
+                    write_tsv(workout_df, "cycling")
                     count += workout_df.shape[0] - size_before
 
                 case _:

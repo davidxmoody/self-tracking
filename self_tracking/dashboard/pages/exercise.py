@@ -36,7 +36,7 @@ layout = html.Div(
 )
 def update_graph(rule: str):
     r = d.running().distance.resample(rule).sum()
-    co = d.cycling_outdoor().calories.resample(rule).sum()
+    co = d.cycling().calories.resample(rule).sum()
     ci = d.cycling_indoor().calories.resample(rule).sum()
     s = (
         d.strength()

@@ -83,9 +83,8 @@ def cycling_indoor():
     return read_events("workouts/cycling-indoor")
 
 
-def cycling_outdoor():
-    # TODO rename this to just "cycling"
-    return read_events("workouts/cycling-outdoor")
+def cycling():
+    return read_events("workouts/cycling")
 
 
 def running():
@@ -110,7 +109,7 @@ def workouts():
     events = [
         climbing().assign(type="climbing"),
         cycling_indoor().assign(type="cycling_indoor"),
-        cycling_outdoor().assign(type="cycling"),
+        cycling().assign(type="cycling"),
         running().assign(type="running"),
         strength().drop_duplicates("start").set_index("start").assign(type="strength"),
     ]

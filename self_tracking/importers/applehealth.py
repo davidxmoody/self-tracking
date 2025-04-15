@@ -181,7 +181,7 @@ def extract_cycling(root: ET.Element) -> None:
     )
 
     write_tsv(cycling_indoor, "workouts/cycling-indoor", index=False)
-    write_tsv(cycling_outdoor, "workouts/cycling-outdoor", index=False)
+    write_tsv(cycling_outdoor, "workouts/cycling", index=False)
 
 
 # %%
