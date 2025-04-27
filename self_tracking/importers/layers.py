@@ -91,21 +91,21 @@ def git_layers():
                 "--pretty=tformat:%cd",
                 f"--author={my_name}",
             ],
-            check=True,
             capture_output=True,
             text=True,
         ).stdout.splitlines()
 
-        commit_dates_layer = (
-            pd.DataFrame({"date": pd.to_datetime(commit_dates)})
-            .groupby("date")
-            .size()
-            .resample(**weekly)
-            .sum()
-            / 7
-        ) ** 0.5
+        if commit_dates:
+            commit_dates_layer = (
+                pd.DataFrame({"date": pd.to_datetime(commit_dates)})
+                .groupby("date")
+                .size()
+                .resample(**weekly)
+                .sum()
+                / 7
+            ) ** 0.5
 
-        write_layer(commit_dates_layer, "git", basename(dirname(repo)))
+            write_layer(commit_dates_layer, "git", basename(dirname(repo)))
 
 
 # %%
