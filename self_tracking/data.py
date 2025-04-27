@@ -13,14 +13,14 @@ def filepath(name: str):
 def read_date_indexed(name: str):
     df = pd.read_table(filepath(name), parse_dates=["date"], index_col="date")
     if "duration" in df.columns:
-        df["duration"] = pd.to_timedelta(df.duration)
+        df["duration"] = pd.to_timedelta(df.duration, unit="h")
     return df
 
 
 def read_events(name: str, index_col: str | None = "start"):
     df = pd.read_table(filepath(name))
     df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
-    df["duration"] = pd.to_timedelta(df.duration)
+    df["duration"] = pd.to_timedelta(df.duration, unit="h")
     if index_col:
         df = df.set_index(index_col)
     return df

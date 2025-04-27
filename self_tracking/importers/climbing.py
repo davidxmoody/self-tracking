@@ -2,7 +2,6 @@ from io import StringIO
 from os.path import expandvars
 import subprocess
 from yaspin import yaspin
-
 import pandas as pd
 
 
@@ -21,15 +20,16 @@ def main():
 
         df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
         df["end"] = pd.to_datetime(df.end, utc=True).dt.tz_convert("Europe/London")
-        df["duration"] = ((df.end - df.start)).apply(
-            lambda dur: str(dur).replace("0 days ", "")
-        )
+        df["duration"] = (df.end - df.start).dt.total_seconds() / (60 * 60)
         df["place"] = df.title.str.replace("Climbing at ", "")
 
         df = df[["start", "duration", "place"]]
 
         df.to_csv(
-            expandvars("$DIARY_DIR/data/workouts/climbing.tsv"), sep="\t", index=False
+            expandvars("$DIARY_DIR/data/workouts/climbing.tsv"),
+            sep="\t",
+            index=False,
+            float_format="%.4f",
         )
 
         spinner.text += f" ({df.shape[0]} events)"

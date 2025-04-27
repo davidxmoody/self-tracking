@@ -3,7 +3,6 @@ from os.path import expandvars
 import re
 import subprocess
 from yaspin import yaspin
-
 import pandas as pd
 
 
@@ -52,9 +51,7 @@ def get_events(since: str):
 
     df["start"] = pd.to_datetime(df.start, utc=True).dt.tz_convert("Europe/London")
     df["end"] = pd.to_datetime(df.end, utc=True).dt.tz_convert("Europe/London")
-    df["duration"] = (df.end - df.start).apply(
-        lambda dur: str(dur).replace("0 days ", "")
-    )
+    df["duration"] = (df.end - df.start).dt.total_seconds() / (60 * 60)
 
     df.loc[df.category == "side project", "category"] = "project"
     df.loc[df.category == "mindfulness", "category"] = "meditation"
@@ -78,12 +75,15 @@ def main():
         merged_df = (
             pd.concat([existing_df, new_df])
             .sort_values("start")
-            .drop_duplicates()
+            .drop_duplicates(["start", "category"])
             .reset_index(drop=True)
         )
 
         merged_df.to_csv(
-            expandvars("$DIARY_DIR/data/atracker.tsv"), sep="\t", index=False
+            expandvars("$DIARY_DIR/data/atracker.tsv"),
+            sep="\t",
+            index=False,
+            float_format="%.4f",
         )
         added_count = merged_df.shape[0] - existing_df.shape[0]
         spinner.text += f" ({added_count} new events)"

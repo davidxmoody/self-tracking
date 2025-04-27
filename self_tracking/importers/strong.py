@@ -1,7 +1,5 @@
-from datetime import date
 from pathlib import Path
 from os.path import expandvars
-
 import numpy as np
 import pandas as pd
 from yaspin import yaspin
@@ -11,13 +9,13 @@ output_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
 
 
 def parse_duration(value: str):
-    minutes = 0
+    hours = 0.0
     for part in value.split(" "):
         if part[-1] == "h":
-            minutes += 60 * int(part[:-1])
+            hours += float(part[:-1])
         elif part[-1] == "m":
-            minutes += int(part[:-1])
-    return str(pd.Timedelta(minutes, unit="m")).replace("0 days ", "")
+            hours += float(part[:-1]) / 60
+    return f"{hours:.4f}"
 
 
 def main():

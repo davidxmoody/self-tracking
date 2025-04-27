@@ -1,11 +1,9 @@
 from datetime import date, timedelta
 from glob import glob
-from math import isnan
 from os.path import expandvars
 from typing import cast
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
-
 import pandas as pd
 
 
@@ -33,11 +31,7 @@ def parse_start(node):
 def parse_duration(node, expected_unit="min"):
     if node.attrib["durationUnit"] != expected_unit:
         raise Exception("Unexpected unit found")
-    return pd.Timedelta(round(float(node.attrib["duration"]) * 60), unit="s")
-
-
-def format_duration(duration):
-    return str(duration).replace("0 days ", "")
+    return float(node.attrib["duration"]) / 60
 
 
 def parse_distance(node, name: str, expected_unit="mi"):
@@ -72,9 +66,20 @@ def gather_records(
     return series
 
 
-def write_tsv(df: pd.DataFrame, name: str, index=True):
-    output_filename = expandvars(f"$DIARY_DIR/data/{name}.tsv")
-    df.to_csv(output_filename, sep="\t", float_format="%.2f", index=index)
+def write_tsv(
+    df: pd.DataFrame,
+    name: str,
+    index=True,
+    dp: dict[str, int] = {"duration": 4, "distance": 2},
+):
+    df = df.copy()
+    for col, decimals in dp.items():
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: f"{x:.{decimals}f}" if pd.notnull(x) else ""
+            )
+
+    df.to_csv(expandvars(f"$DIARY_DIR/data/{name}.tsv"), sep="\t", index=index)
     print(f"Written {name}.tsv ({len(df)} records)")
 
 
@@ -89,7 +94,7 @@ def extract_running(root: ET.Element) -> None:
             "start": (manual_export.date + pd.Timedelta(hours=12)).dt.tz_localize(
                 "Europe/London"
             ),
-            "duration": pd.to_timedelta(manual_export.distance * 9, unit="m"),
+            "duration": manual_export.distance * (9 / 60),
             "distance": manual_export.distance,
             "calories": (manual_export.distance * 110).astype(int),
         }
@@ -103,7 +108,8 @@ def extract_running(root: ET.Element) -> None:
             "start": pd.to_datetime(garmin_export.Date).dt.tz_localize("Europe/London"),
             "duration": pd.to_timedelta(
                 garmin_export.Time.replace(r"\.\d*", "", regex=True)
-            ),
+            ).dt.total_seconds()
+            / (60 * 60),
             "distance": garmin_export.Distance,
             "calories": garmin_export.Calories.str.replace(",", "").astype(int),
         }
@@ -124,8 +130,6 @@ def extract_running(root: ET.Element) -> None:
     running = pd.concat(
         [running_manual, running_garmin, running_apple], ignore_index=True
     ).sort_values("start")
-
-    running["duration"] = running.duration.apply(format_duration)
 
     write_tsv(running, "workouts/running", index=False)
 
@@ -149,8 +153,6 @@ def extract_cycling(root: ET.Element) -> None:
             "./Workout[@workoutActivityType='HKWorkoutActivityTypeCycling']"
         )
     )
-
-    cycling_mixed["duration"] = cycling_mixed.duration.apply(format_duration)
 
     cycling_indoor = cycling_mixed[cycling_mixed["indoor"] == True].drop(
         ["distance", "indoor"], axis=1
@@ -223,15 +225,14 @@ def extract_weight(root: ET.Element) -> None:
     )
 
     weight_old = pd.read_table(
-        expandvars("$DIARY_DIR/misc/2024-01-22-old-weights.tsv"),
+        expandvars("$DIARY_DIR/data/exports/2024-01-22-old-weights.tsv"),
         parse_dates=["date"],
         index_col="date",
     )
 
     weight = pd.concat([weight_old, weight_new])
-    weight["fat"] = weight.fat.map(lambda v: "" if isnan(v) else format(v, ".3f"))
 
-    write_tsv(weight, "weight")
+    write_tsv(weight, "weight", dp={"weight": 2, "fat": 3})
 
 
 # %%
@@ -239,16 +240,18 @@ def extract_meditation(root: ET.Element) -> None:
     df = pd.DataFrame(
         {
             "start": parse_start(node),
-            "duration": pd.to_datetime(node.attrib["endDate"])
-            - pd.to_datetime(node.attrib["startDate"]),
+            "duration": (
+                pd.to_datetime(node.attrib["endDate"])
+                - pd.to_datetime(node.attrib["startDate"])
+            ).total_seconds()
+            / (60 * 60),
         }
         for node in root.iterfind(
             "./Record[@type='HKCategoryTypeIdentifierMindfulSession']"
         )
     )
 
-    df = df.loc[df.duration >= pd.to_timedelta(1, unit="m")]
-    df["duration"] = df.duration.apply(format_duration)
+    df = df.loc[df.duration >= (1 / 60)]
 
     write_tsv(df, "meditation", index=False)
 
@@ -277,19 +280,17 @@ def extract_sleep(root: ET.Element) -> None:
 
     sleep["subtype"] = sleep.subtype.str.replace("Asleep", "")
 
-    sleep["duration"] = (sleep.end - sleep.start).dt.total_seconds()
+    sleep["duration"] = (sleep.end - sleep.start).dt.total_seconds() / (60 * 60)
 
     sleep["date"] = pd.to_datetime((sleep.end + timedelta(hours=8)).dt.date)
 
-    sleep_pivot = (
-        sleep.pivot_table(
-            index="date", columns="subtype", values="duration", aggfunc="sum"
-        )
-        .fillna(0)
-        .astype(int)[["Deep", "Core", "REM", "Awake"]]
-    )
+    columns = ["Deep", "Core", "REM", "Awake"]
 
-    write_tsv(sleep_pivot, "sleep")
+    sleep_pivot = sleep.pivot_table(
+        index="date", columns="subtype", values="duration", aggfunc="sum"
+    ).fillna(0.0)[columns]
+
+    write_tsv(sleep_pivot, "sleep", dp={c: 4 for c in columns})
 
 
 # %%

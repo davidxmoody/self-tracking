@@ -2,19 +2,12 @@ from os.path import expandvars
 from pathlib import Path
 from yaspin import yaspin
 import pandas as pd
-import self_tracking.data as d
 
 import_dir = Path(
     expandvars("$HOME/Library/Mobile Documents/com~apple~CloudDocs/Health/Workouts")
 )
 
 export_dir = Path(expandvars("$DIARY_DIR/data/workouts"))
-
-
-def write_tsv(df: pd.DataFrame, name: str):
-    output_filename = expandvars(f"$DIARY_DIR/data/workouts/{name}.tsv")
-    df["duration"] = df.duration.apply(lambda dur: str(dur).replace("0 days ", ""))
-    df.to_csv(output_filename, sep="\t", float_format="%.2f")
 
 
 def main():
@@ -25,12 +18,13 @@ def main():
 
         df = pd.read_csv(import_file)
 
-        df["start"] = pd.to_datetime(
-            df.Date.replace(" - .*", "", regex=True)
-        ).dt.tz_localize("Europe/London")
-        df = df.set_index("start")
+        df["start"] = (
+            pd.to_datetime(df.Date.replace(" - .*", "", regex=True))
+            .dt.tz_localize("Europe/London")
+            .astype(str)
+        )
 
-        df["duration"] = pd.to_timedelta(df["Duration(s)"].round(), unit="s")
+        df["duration"] = df["Duration(s)"] / (60 * 60)
 
         df["distance"] = df["Distance(mi)"]
 
@@ -39,14 +33,27 @@ def main():
         for workout_type, group in df.groupby("Activity"):
             match workout_type:
                 case "Cycling":
-                    workout_df = d.cycling()
+                    filepath = export_dir.joinpath("cycling.tsv")
+
+                    workout_df = pd.read_table(filepath)
                     size_before = workout_df.shape[0]
+
                     workout_df = pd.concat(
-                        [workout_df, group[["duration", "distance", "calories"]]]
+                        [
+                            workout_df,
+                            group[["start", "duration", "distance", "calories"]],
+                        ]
                     )
-                    workout_df = workout_df[~workout_df.index.duplicated()].sort_index()
-                    write_tsv(workout_df, "cycling")
+                    workout_df["duration"] = workout_df.duration.apply(
+                        lambda x: f"{x:.4f}"
+                    )
+                    workout_df["distance"] = workout_df.distance.apply(
+                        lambda x: f"{x:.2f}"
+                    )
+                    workout_df = workout_df.drop_duplicates("start")
+
                     count += workout_df.shape[0] - size_before
+                    workout_df.to_csv(filepath, sep="\t", index=False)
 
                 case _:
                     raise Exception(f"Unknown workout type: {workout_type}")
