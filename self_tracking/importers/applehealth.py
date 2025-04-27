@@ -1,4 +1,3 @@
-# TODO use pandas timedelta instead
 from datetime import date, timedelta
 from glob import glob
 from math import isnan
@@ -23,10 +22,6 @@ def get_last_full_day(root: ET.Element):
         raise Exception("Could not find export date")
     export_date = date.fromisoformat(export_date_node.attrib["value"][0:10])
     return export_date - timedelta(days=1)
-
-
-def parse_date(node):
-    return pd.to_datetime(node.attrib["endDate"][0:10])
 
 
 def parse_start(node):
@@ -59,26 +54,6 @@ def parse_calories(node, expected_unit="Cal"):
     if calories_node.attrib["unit"] != expected_unit:
         raise Exception("Unexpected unit found")
     return round(float(calories_node.attrib["sum"]))
-
-
-def parse_indoor(node):
-    indoor_node = node.find("*[@key='HKIndoorWorkout']")
-    return indoor_node.attrib["value"] == "1"
-
-
-# def parse_workout_type(node):
-#     return {
-#         "TraditionalStrengthTraining": "strength",
-#         "HighIntensityIntervalTraining": "seven",
-#         "FunctionalStrengthTraining": "seven",
-#         "Running": "running",
-#         "Cycling": "cycling",
-#         "Walking": "hiking",
-#     }[node.attrib["workoutActivityType"][21:]]
-
-
-def sum_by_date(df):
-    return cast(pd.DataFrame, df.groupby("date").agg("sum"))
 
 
 def gather_records(
@@ -156,6 +131,11 @@ def extract_running(root: ET.Element) -> None:
 
 
 # %%
+def parse_indoor(node):
+    indoor_node = node.find("*[@key='HKIndoorWorkout']")
+    return indoor_node.attrib["value"] == "1"
+
+
 def extract_cycling(root: ET.Element) -> None:
     cycling_mixed = pd.DataFrame(
         {
