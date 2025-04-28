@@ -1,7 +1,5 @@
 import dash
 from dash import Input, Output, dcc, html
-from typing import cast
-from pandas import DataFrame
 import plotly.express as px
 import self_tracking.data as d
 import dash_mantine_components as dmc
@@ -49,10 +47,7 @@ layout = html.Div(
     [Input("aggregation-period", "value"), Input("aggregation-op", "value")],
 )
 def update_graph(rule: str = "MS", op: str = "mean"):
-    atracker = cast(
-        DataFrame,
-        d.atracker()["2020":].apply(lambda x: x.dt.total_seconds() / (60 * 60)),
-    )
+    atracker = d.atracker()["2020-05-04":]
 
     long = (
         atracker.drop(["sleep"], axis=1)

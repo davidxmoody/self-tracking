@@ -46,7 +46,7 @@ def atracker_layers():
     atracker = d.atracker().resample(**weekly).sum()
 
     for category in atracker.columns:
-        non_zero = atracker[category][atracker[category] > pd.to_timedelta(0)]
+        non_zero = atracker[category][atracker[category] > 0.0]
         limit = non_zero.quantile(0.75)
         layer = non_zero.apply(lambda x: x / limit)
         write_layer(layer, "atracker", category)

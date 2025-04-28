@@ -7,7 +7,7 @@ import pandas as pd
 # %%
 color_map = d.atracker_categories()
 events = d.atracker_events()
-events["end"] = events.start + events.duration
+events["end"] = events.start + pd.to_timedelta(events.duration, unit="h")
 
 
 # %%

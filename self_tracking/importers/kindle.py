@@ -18,9 +18,7 @@ insights["start"] = (
     .dt.round("1s")
 )
 
-insights["duration"] = pd.to_timedelta(
-    insights.total_reading_milliseconds, unit="ms"
-).dt.round("1s")
+insights["duration"] = insights.total_reading_milliseconds / (1000 * 60 * 60)
 
 
 whispersync = pd.read_csv(

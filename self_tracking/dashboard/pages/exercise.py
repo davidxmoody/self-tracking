@@ -45,7 +45,7 @@ def update_graph(rule: str):
         .title.resample(rule)
         .size()
     )
-    c = d.climbing().duration.resample(rule).sum().dt.total_seconds() / (60 * 60)
+    c = d.climbing().duration.resample(rule).sum()
 
     fig = make_subplots(
         rows=4,
