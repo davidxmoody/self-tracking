@@ -9,7 +9,7 @@ import pandas as pd
 dash.register_page(__name__, title="ATracker")
 
 
-aggregation_periods = {
+periods = {
     "Yearly": "YS",
     "Quarterly": "QS",
     "Monthly": "MS",
@@ -17,7 +17,7 @@ aggregation_periods = {
     "Daily": "D",
 }
 
-aggregation_ops = {
+aggregations = {
     "Daily average": "mean",
     "Total": "sum",
 }
@@ -37,12 +37,13 @@ layout = html.Div(
     [
         dmc.Stack(
             [
-                SelectControl("aggregation-period", aggregation_periods),
-                SelectControl("aggregation-op", aggregation_ops),
+                SelectControl("atracker-period", periods),
+                SelectControl("atracker-agg", aggregations),
+                dmc.Switch(id="atracker-limit", label="Limit bars", checked=True),
             ],
             align="flex-start",
         ),
-        dcc.Graph(id="bar-chart", figure={}),
+        dcc.Graph(id="atracker-chart", figure={}),
     ]
 )
 
@@ -64,21 +65,26 @@ def get_df() -> pd.DataFrame:
 
 
 @dash.callback(
-    Output("bar-chart", "figure"),
-    [Input("aggregation-period", "value"), Input("aggregation-op", "value")],
+    Output("atracker-chart", "figure"),
+    [
+        Input("atracker-period", "value"),
+        Input("atracker-agg", "value"),
+        Input("atracker-limit", "checked"),
+    ],
 )
-def update_graph(rule: str = "MS", op: str = "mean"):
-    long = (
-        get_df()["2020-05-04":]
+def update_graph(rule: str, agg: str, limit: bool):
+    df = (
+        get_df()
         .drop(["sleep"], axis=1)
-        .resample("D")
-        .asfreq()
-        .fillna(0)
         .resample(rule, closed="left", label="left")
-        .agg(op)
+        .agg(agg)
         .reset_index()
-        .melt(id_vars="date", var_name="category", value_name="value")
     )
+
+    if limit:
+        df = df.iloc[-100:]
+
+    long = df.melt(id_vars="date", var_name="category", value_name="value")
 
     color_map = d.atracker_categories()
 

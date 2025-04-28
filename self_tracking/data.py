@@ -22,7 +22,7 @@ def read_events(name: str, index_col: str | None = "start"):
 
 
 # %%
-def atracker_events():
+def atracker_events(start_date: str | None = None):
     df = (
         pd.concat(
             [
@@ -36,6 +36,10 @@ def atracker_events():
     )
 
     df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
+
+    if start_date:
+        df = df.loc[df.date >= start_date]
+
     return df
 
 
@@ -57,20 +61,26 @@ def atracker_categories() -> dict[str, str]:
     return df.color.to_dict()
 
 
-def atracker():
-    df = atracker_events().pivot_table(
+def atracker(start_date: str | None = "2020-05-04"):
+    df = atracker_events(start_date).pivot_table(
         values="duration", index="date", columns="category", aggfunc="sum"
     )
-    return df.fillna(df.mask(df.ffill().notna(), 0.0))
+
+    full_range = pd.date_range(
+        start=df.index.min(), end=df.index.max(), freq="D"
+    ).rename("date")
+
+    df = df.reindex(full_range, fill_value=0.0).fillna(0.0)
+
+    return df
 
 
-def atracker_heatmap(start_date="2020"):
+def atracker_heatmap(start_date="2020-05-04"):
     categories = list(atracker_categories())
     minutes_in_day = 24 * 60
     heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
 
-    events = atracker_events()
-    events = events.loc[events.date > start_date]
+    events = atracker_events(start_date)
 
     for event in events.itertuples(index=False):
         event: Any = event

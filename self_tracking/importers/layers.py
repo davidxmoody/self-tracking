@@ -43,7 +43,7 @@ def streaks_layers():
 
 # %%
 def atracker_layers():
-    atracker = d.atracker().resample(**weekly).sum()
+    atracker = d.atracker(None).resample(**weekly).sum()
 
     for category in atracker.columns:
         non_zero = atracker[category][atracker[category] > 0.0]
