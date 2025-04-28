@@ -85,12 +85,13 @@ def update_graph(rule: str = "MS", op: str = "mean"):
         color="category",
         color_discrete_map=color_map,
         category_orders={"category": reversed(color_map.keys())},
-        labels={
-            "value": f"{[k for k, v in aggregation_ops.items() if v == op][0]} (hours)",
-            "date": "Date",
-            "category": "Category",
-        },
     )
-    fig.update_layout(legend={"traceorder": "reversed"})
+    fig.update_layout(
+        legend={"traceorder": "reversed", "x": 1},
+        xaxis_title=None,
+        yaxis_title=None,
+        legend_title=None,
+        margin={"l": 20, "r": 0, "t": 20, "b": 0},
+    )
 
     return fig
