@@ -1,3 +1,4 @@
+from typing import Any, cast
 import dash
 from dash import Input, Output, dcc, html
 import plotly.graph_objects as go
@@ -8,31 +9,29 @@ import dash_mantine_components as dmc
 dash.register_page(__name__)
 
 
-aggregation_periods = {
-    "Daily": "D",
-    "Weekly": "W-MON",
-    "Monthly": "MS",
+periods = {
     "Quarterly": "QS",
-    "Yearly": "YS",
+    "Monthly": "MS",
+    "Weekly": "W-MON",
 }
 
 layout = html.Div(
     [
-        dmc.RadioGroup(
-            id="exercise-aggregation-period",
-            children=[dmc.Radio(k, value=v) for k, v in aggregation_periods.items()],
-            value=aggregation_periods["Monthly"],
-            label="Aggregation period:",
-            size="sm",
+        dmc.SegmentedControl(
+            id="exercise-period",
+            value=periods["Monthly"],
+            data=cast(Any, [{"value": v, "label": k} for k, v in periods.items()]),
+            persistence_type="local",
+            persistence=True,
         ),
-        dcc.Graph(id="exercise-bar-chart", figure={}),
+        dcc.Graph(id="exercise-chart", figure={}),
     ]
 )
 
 
 @dash.callback(
-    Output("exercise-bar-chart", "figure"),
-    [Input("exercise-aggregation-period", "value")],
+    Output("exercise-chart", "figure"),
+    [Input("exercise-period", "value")],
 )
 def update_graph(rule: str):
     r = d.running().distance.resample(rule).sum()
@@ -45,7 +44,7 @@ def update_graph(rule: str):
         .title.resample(rule)
         .size()
     )
-    c = d.climbing().duration.resample(rule).sum()
+    c = d.climbing().duration.clip(0, 3).resample(rule).sum()
 
     fig = make_subplots(
         rows=4,
@@ -75,6 +74,8 @@ def update_graph(rule: str):
     fig.add_trace(go.Bar(x=c.index, y=c.values, name="Climbing"), row=4, col=1)
     fig.update_yaxes(title_text="Hours", row=4, col=1)
 
-    fig.update_layout(barmode="stack", showlegend=False)
+    fig.update_layout(
+        barmode="stack", showlegend=False, margin={"l": 20, "r": 20, "t": 60, "b": 0}
+    )
 
     return fig
