@@ -3,6 +3,7 @@ from dash import Input, Output, dcc, html
 import plotly.express as px
 import self_tracking.data as d
 import dash_mantine_components as dmc
+import pandas as pd
 
 dash.register_page(__name__)
 
@@ -42,15 +43,30 @@ layout = html.Div(
 )
 
 
+last_mtime = 0.0
+last_df: pd.DataFrame | None = None
+
+
+def get_df() -> pd.DataFrame:
+    global last_mtime
+    global last_df
+    mtime = d.atracker_mtime()
+    if last_df is not None and mtime == last_mtime:
+        return last_df
+    df = d.atracker()
+    last_df = df
+    last_mtime = mtime
+    return df
+
+
 @dash.callback(
     Output("bar-chart", "figure"),
     [Input("aggregation-period", "value"), Input("aggregation-op", "value")],
 )
 def update_graph(rule: str = "MS", op: str = "mean"):
-    atracker = d.atracker()["2020-05-04":]
-
     long = (
-        atracker.drop(["sleep"], axis=1)
+        get_df()["2020-05-04":]
+        .drop(["sleep"], axis=1)
         .resample("D")
         .asfreq()
         .fillna(0)

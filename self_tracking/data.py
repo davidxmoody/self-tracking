@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from os.path import expandvars
+from os.path import expandvars, getmtime
 from typing import Any, cast
 import pandas as pd
 
@@ -37,6 +37,19 @@ def atracker_events():
 
     df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
     return df
+
+
+def atracker_mtime():
+    names = [
+        "atracker",
+        "meditation",
+        "workouts/climbing",
+        "workouts/cycling-indoor",
+        "workouts/cycling",
+        "workouts/running",
+        "workouts/strength",
+    ]
+    return max(getmtime(filepath(name)) for name in names)
 
 
 def atracker_categories() -> dict[str, str]:
