@@ -10,20 +10,19 @@ app = dash.Dash(__name__, use_pages=True, external_stylesheets=list(dmc.styles.A
 
 app.layout = dmc.MantineProvider(
     dmc.AppShell(
-        header={"height": 60},
+        header={"height": 50},
         padding="sm",
         children=[
             dmc.AppShellHeader(
-                dmc.Group(
+                dmc.Flex(
                     h="100%",
                     mx="lg",
                     gap="lg",
                     children=[
-                        dmc.Anchor(
-                            page["name"],
+                        dmc.NavLink(
+                            label=page["title"],
                             href=page["path"],
-                            size="lg",
-                            underline="always",
+                            active="exact",
                         )
                         for page in page_registry.values()
                     ],

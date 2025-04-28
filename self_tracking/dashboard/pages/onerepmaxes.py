@@ -6,7 +6,7 @@ import self_tracking.data as d
 import plotly.express as px
 import pandas as pd
 
-dash.register_page(__name__)
+dash.register_page(__name__, title="One Rep Maxes")
 
 df = d.strength()
 df["date"] = pd.to_datetime(df.start.dt.date)

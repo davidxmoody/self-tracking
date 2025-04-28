@@ -6,7 +6,7 @@ import self_tracking.data as d
 import dash_mantine_components as dmc
 import pandas as pd
 
-dash.register_page(__name__)
+dash.register_page(__name__, title="ATracker")
 
 
 aggregation_periods = {
