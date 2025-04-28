@@ -1,3 +1,4 @@
+from typing import Any, cast
 import dash
 from dash import Input, Output, dcc, html
 import plotly.express as px
@@ -9,11 +10,11 @@ dash.register_page(__name__)
 
 
 aggregation_periods = {
-    "Daily": "D",
-    "Weekly": "W-MON",
-    "Monthly": "MS",
-    "Quarterly": "QS",
     "Yearly": "YS",
+    "Quarterly": "QS",
+    "Monthly": "MS",
+    "Weekly": "W-MON",
+    "Daily": "D",
 }
 
 aggregation_ops = {
@@ -22,21 +23,24 @@ aggregation_ops = {
 }
 
 
+def SelectControl(id: str, options: dict[str, str]):
+    return dmc.SegmentedControl(
+        id=id,
+        value=list(options.values())[0],
+        data=cast(Any, [{"value": v, "label": k} for k, v in options.items()]),
+        persistence_type="local",
+        persistence=True,
+    )
+
+
 layout = html.Div(
     [
-        dmc.RadioGroup(
-            id="aggregation-period",
-            children=[dmc.Radio(k, value=v) for k, v in aggregation_periods.items()],
-            value=aggregation_periods["Monthly"],
-            label="Aggregation period:",
-            size="sm",
-        ),
-        dmc.RadioGroup(
-            id="aggregation-op",
-            children=[dmc.Radio(k, value=v) for k, v in aggregation_ops.items()],
-            value=aggregation_ops["Daily average"],
-            label="Aggregation operation:",
-            size="sm",
+        dmc.Stack(
+            [
+                SelectControl("aggregation-period", aggregation_periods),
+                SelectControl("aggregation-op", aggregation_ops),
+            ],
+            align="flex-start",
         ),
         dcc.Graph(id="bar-chart", figure={}),
     ]
