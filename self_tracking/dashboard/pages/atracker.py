@@ -39,7 +39,10 @@ layout = html.Div(
             [
                 SelectControl("atracker-period", periods),
                 SelectControl("atracker-agg", aggregations),
-                dmc.Switch(id="atracker-limit", label="Limit bars", checked=True),
+                dmc.Checkbox(id="atracker-limit", label="Limit bars", checked=True),
+                dmc.Checkbox(
+                    id="atracker-omit-last", label="Omit last day", checked=True
+                ),
             ],
             align="flex-start",
         ),
@@ -70,16 +73,16 @@ def get_df() -> pd.DataFrame:
         Input("atracker-period", "value"),
         Input("atracker-agg", "value"),
         Input("atracker-limit", "checked"),
+        Input("atracker-omit-last", "checked"),
     ],
 )
-def update_graph(rule: str, agg: str, limit: bool):
-    df = (
-        get_df()
-        .drop(["sleep"], axis=1)
-        .resample(rule, closed="left", label="left")
-        .agg(agg)
-        .reset_index()
-    )
+def update_graph(rule: str, agg: str, limit: bool, omit_last: bool):
+    df = get_df().drop(["sleep"], axis=1)
+
+    if omit_last:
+        df = df.iloc[:-1]
+
+    df = df.resample(rule, closed="left", label="left").agg(agg).reset_index()
 
     if limit:
         df = df.iloc[-100:]
