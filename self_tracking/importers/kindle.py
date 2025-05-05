@@ -31,6 +31,7 @@ df = pd.DataFrame(
         .ASIN.map(book_titles)
         .fillna("Not Available")
         .str.replace(r"^Penguin Readers Level \d: ", "", regex=True)
+        .str.replace(r": Book (\d+):", r" \1:", regex=True)
         .str.replace(r" - Updated Edition", "", regex=True)
         .str.replace(r", The - .*", "", regex=True)
         .str.replace(r"\(.*?\)", "", regex=True)
