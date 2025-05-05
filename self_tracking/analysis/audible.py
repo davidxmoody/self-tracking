@@ -71,13 +71,13 @@ listening = pd.DataFrame(
     {
         "date": pd.to_datetime(listening["Start Date"]),
         "duration": listening["Event Duration Milliseconds"] / (1000 * 60 * 60),
-        "name": listening["Product Name"],
+        "title": listening["Product Name"],
     }
 )
-listening = listening.groupby(["date", "name"]).sum().reset_index()
-listening = listening.loc[listening.groupby("name").duration.transform("sum") > 2]
-listening["name"] = (
-    listening["name"]
+listening = listening.groupby(["date", "title"]).sum().reset_index()
+listening = listening.loc[listening.groupby("title").duration.transform("sum") > 2]
+listening["title"] = (
+    listening["title"]
     .str.replace(r"\(.*?\)", "", regex=True)
     .str.replace(r":.*$", "", regex=True)
     .str.strip()
@@ -109,12 +109,12 @@ fig
 
 # %% jupyter={"source_hidden": true}
 listening_grouped = (
-    listening.groupby([pd.Grouper(key="date", freq="QS"), "name"])
+    listening.groupby([pd.Grouper(key="date", freq="QS"), "title"])
     .duration.sum()
     .reset_index()
     .query("duration > 2")
 )
-fig = px.bar(listening_grouped, x="date", y="duration", color="name")
+fig = px.bar(listening_grouped, x="date", y="duration", color="title")
 fig.update_layout(
     autosize=False,
     width=1100,
