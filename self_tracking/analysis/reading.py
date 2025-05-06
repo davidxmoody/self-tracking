@@ -58,7 +58,7 @@ fig.update_layout(
     width=1100,
     height=350,
     xaxis_title="Date",
-    yaxis_title="Listening time (hours)",
+    yaxis_title="Duration (hours)",
     legend_title="Audiobook",
 )
 fig
@@ -69,22 +69,42 @@ fig
 
 
 # %% jupyter={"source_hidden": true}
-fig = px.bar(
-    df.groupby([pd.Grouper(key="date", freq="QS"), "title"])
-    .duration.sum()
-    .reset_index()
-    .query("duration > 2")
-    .sort_values("date", ascending=False),
-    x="date",
-    y="duration",
-    color="title",
+def assign_periods(group, max_gap_days=90):
+    gaps = group["date"].diff().dt.days.fillna(0)
+    return (gaps > max_gap_days).cumsum()
+
+
+df["period"] = df.groupby("title", group_keys=False).apply(
+    assign_periods, include_groups=False
 )
+
+grouped = (
+    df.groupby(["title", "period"])
+    .agg(duration=("duration", "sum"), start=("date", "min"), end=("date", "max"))
+    .reset_index()
+)
+
+grouped = grouped.loc[grouped.duration > 3]
+
+grouped["quarter"] = grouped.end.dt.to_period("Q").dt.start_time
+
+
+# %% jupyter={"source_hidden": true}
+fig = px.bar(
+    grouped,
+    x="duration",
+    y="quarter",
+    text="title",
+    color="title",
+    color_discrete_sequence=px.colors.qualitative.Alphabet,
+)
+fig.update_traces(textposition="inside")
 fig.update_layout(
     autosize=False,
     width=1100,
-    height=600,
-    xaxis_title="Date",
-    yaxis_title="Listening time (hours)",
-    legend_title="Title",
+    height=800,
+    xaxis_title="Duration (hours)",
+    yaxis_title=None,
+    showlegend=False,
 )
 fig
