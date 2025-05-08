@@ -35,7 +35,7 @@ def SelectControl(id: str, options: dict[str, str]):
 
 layout = html.Div(
     [
-        dmc.Stack(
+        dmc.Group(
             [
                 SelectControl("atracker-period", periods),
                 SelectControl("atracker-agg", aggregations),
@@ -44,7 +44,8 @@ layout = html.Div(
                     id="atracker-omit-last", label="Omit last day", checked=True
                 ),
             ],
-            align="flex-start",
+            gap="xl",
+            justify="center",
         ),
         dcc.Graph(id="atracker-chart", figure={}),
     ]
@@ -100,11 +101,12 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool):
         category_orders={"category": reversed(color_map.keys())},
     )
     fig.update_layout(
+        height=500,
         legend={"traceorder": "reversed", "x": 1},
         xaxis_title=None,
         yaxis_title=None,
         legend_title=None,
-        margin={"l": 20, "r": 0, "t": 20, "b": 0},
+        margin={"l": 40, "r": 0, "t": 20, "b": 0},
     )
 
     return fig
