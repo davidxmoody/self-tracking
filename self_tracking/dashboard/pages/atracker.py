@@ -33,21 +33,29 @@ def SelectControl(id: str, options: dict[str, str]):
     )
 
 
+def Checkbox(id: str, label: str, checked=True):
+    return dmc.Checkbox(
+        id=id,
+        label=label,
+        checked=checked,
+        persistence_type="local",
+        persistence=True,
+    )
+
+
 layout = html.Div(
     [
         dmc.Group(
             [
                 SelectControl("atracker-period", periods),
                 SelectControl("atracker-agg", aggregations),
-                dmc.Checkbox(id="atracker-limit", label="Limit bars", checked=True),
-                dmc.Checkbox(
-                    id="atracker-omit-last", label="Omit last day", checked=True
-                ),
+                Checkbox("atracker-limit", "Limit bars"),
+                Checkbox("atracker-omit-last", "Omit last day"),
             ],
             gap="xl",
             justify="center",
         ),
-        dcc.Graph(id="atracker-chart", figure={}),
+        html.Div(id="atracker-chart"),
     ]
 )
 
@@ -69,7 +77,7 @@ def get_df() -> pd.DataFrame:
 
 
 @dash.callback(
-    Output("atracker-chart", "figure"),
+    Output("atracker-chart", "children"),
     [
         Input("atracker-period", "value"),
         Input("atracker-agg", "value"),
@@ -109,4 +117,4 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool):
         margin={"l": 40, "r": 0, "t": 20, "b": 0},
     )
 
-    return fig
+    return dcc.Graph(figure=fig)
