@@ -56,9 +56,12 @@ def atracker_mtime():
     return max(getmtime(filepath(name)) for name in names)
 
 
-def atracker_categories() -> dict[str, str]:
-    df = pd.read_table(filepath("atracker-categories"), index_col="category")
-    return df.color.to_dict()
+def atracker_categories():
+    return pd.read_table(filepath("atracker-categories"), index_col="category")
+
+
+def atracker_color_map() -> dict[str, str]:
+    return atracker_categories().color.to_dict()
 
 
 def atracker(start_date: str | None = "2020-05-04"):
@@ -76,7 +79,7 @@ def atracker(start_date: str | None = "2020-05-04"):
 
 
 def atracker_heatmap(start_date="2020-05-04"):
-    categories = list(atracker_categories())
+    categories = list(atracker_categories().index)
     minutes_in_day = 24 * 60
     heatmap = pd.DataFrame(0, index=range(minutes_in_day), columns=categories)
 

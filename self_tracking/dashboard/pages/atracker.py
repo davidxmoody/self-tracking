@@ -137,7 +137,7 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
     long = long.loc[long.value > 0]
     long["duration"] = long.value.apply(format_duration)
 
-    color_map = d.atracker_categories()
+    color_map = d.atracker_color_map()
 
     fig = px.bar(
         long,

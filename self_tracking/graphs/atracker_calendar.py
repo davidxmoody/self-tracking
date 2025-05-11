@@ -6,7 +6,7 @@ import pandas as pd
 
 
 # %%
-color_map = d.atracker_categories()
+color_map = d.atracker_color_map()
 
 start = (datetime.now() - timedelta(weeks=4)).date().strftime("%Y-%m-%d")
 events = d.atracker_events(start)
