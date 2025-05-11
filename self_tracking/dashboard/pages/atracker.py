@@ -109,7 +109,7 @@ def trigger_refresh(n_clicks):
 
 def format_duration(hours: float):
     h, m = divmod(round(hours * 60), 60)
-    return f"{h}h {m}m"
+    return f"{h:02d}:{m:02d}"
 
 
 @dash.callback(
@@ -134,9 +134,7 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
         df = df.iloc[-100:]
 
     long = df.melt(id_vars="date", var_name="category", value_name="value")
-
-    long["period"] = long.date.dt.to_period(rule[0]).astype(str)
-
+    long = long.loc[long.value > 0]
     long["duration"] = long.value.apply(format_duration)
 
     color_map = d.atracker_categories()
@@ -148,13 +146,10 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
         color="category",
         color_discrete_map=color_map,
         category_orders={"category": reversed(color_map.keys())},
-        custom_data=["category", "period", "duration"],
+        custom_data=["category", "duration"],
     )
     fig.update_traces(
-        hovertemplate="<b>Category:</b> %{customdata[0]}<br>"
-        + "<b>Period:</b> %{customdata[1]}<br>"
-        + "<b>Duration:</b> %{customdata[2]}<br>"
-        + "<extra></extra>"
+        hovertemplate="<b>%{customdata[1]}</b> %{customdata[0]}<extra></extra>"
     )
     fig.update_layout(
         height=500,
@@ -163,6 +158,7 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
         yaxis_title=None,
         legend_title=None,
         margin={"l": 40, "r": 0, "t": 20, "b": 0},
+        hovermode="x unified",
     )
 
     return dcc.Graph(figure=fig)
