@@ -9,7 +9,8 @@ app = dash.Dash(__name__, use_pages=True, external_stylesheets=list(dmc.styles.A
 
 
 app.layout = dmc.MantineProvider(
-    dmc.AppShell(
+    theme={"cursorType": "pointer"},
+    children=dmc.AppShell(
         header={"height": 50},
         padding="sm",
         children=[
@@ -30,7 +31,7 @@ app.layout = dmc.MantineProvider(
             ),
             dmc.AppShellMain(page_container),
         ],
-    )
+    ),
 )
 
 
