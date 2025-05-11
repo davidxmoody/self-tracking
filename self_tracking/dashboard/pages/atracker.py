@@ -107,6 +107,11 @@ def trigger_refresh(n_clicks):
     return (n_clicks, False)
 
 
+def format_duration(hours: float):
+    h, m = divmod(round(hours * 60), 60)
+    return f"{h}h {m}m"
+
+
 @dash.callback(
     Output("atracker-chart", "children"),
     [
@@ -130,6 +135,10 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
 
     long = df.melt(id_vars="date", var_name="category", value_name="value")
 
+    long["period"] = long.date.dt.to_period(rule[0]).astype(str)
+
+    long["duration"] = long.value.apply(format_duration)
+
     color_map = d.atracker_categories()
 
     fig = px.bar(
@@ -139,6 +148,13 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
         color="category",
         color_discrete_map=color_map,
         category_orders={"category": reversed(color_map.keys())},
+        custom_data=["category", "period", "duration"],
+    )
+    fig.update_traces(
+        hovertemplate="<b>Category:</b> %{customdata[0]}<br>"
+        + "<b>Period:</b> %{customdata[1]}<br>"
+        + "<b>Duration:</b> %{customdata[2]}<br>"
+        + "<extra></extra>"
     )
     fig.update_layout(
         height=500,
