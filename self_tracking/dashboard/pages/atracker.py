@@ -107,6 +107,14 @@ def trigger_refresh(n_clicks):
     return (n_clicks, False)
 
 
+@dash.callback(
+    Output("atracker-agg", "disabled"),
+    Input("atracker-period", "value"),
+)
+def update_controls(rule: str):
+    return rule == "D"
+
+
 def format_duration(hours: float):
     h, m = divmod(round(hours * 60), 60)
     return f"{h:02d}:{m:02d}"
