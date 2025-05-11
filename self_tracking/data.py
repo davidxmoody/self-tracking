@@ -60,11 +60,14 @@ def atracker_categories():
     return pd.read_table(filepath("atracker-categories"), index_col="category")
 
 
-def atracker_color_map() -> dict[str, str]:
-    return atracker_categories().color.to_dict()
+def atracker_color_map(use_names=False) -> dict[str, str]:
+    categories = atracker_categories()
+    if use_names:
+        categories = categories.set_index("name")
+    return categories.color.to_dict()
 
 
-def atracker(start_date: str | None = "2020-05-04"):
+def atracker(start_date: str | None = "2020-05-04", use_names=False):
     df = atracker_events(start_date).pivot_table(
         values="duration", index="date", columns="category", aggfunc="sum"
     )
@@ -74,6 +77,10 @@ def atracker(start_date: str | None = "2020-05-04"):
     ).rename("date")
 
     df = df.reindex(full_range, fill_value=0.0).fillna(0.0)
+
+    if use_names:
+        names = atracker_categories().name
+        df.columns = df.columns.map(names)
 
     return df
 

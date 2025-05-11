@@ -78,7 +78,7 @@ def get_df() -> pd.DataFrame:
     mtime = d.atracker_mtime()
     if last_df is not None and mtime == last_mtime:
         return last_df
-    df = d.atracker()
+    df = d.atracker(use_names=True)
     last_df = df
     last_mtime = mtime
     return df
@@ -123,7 +123,7 @@ def format_duration(hours: float):
     ],
 )
 def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: int):
-    df = get_df().drop(["sleep"], axis=1)
+    df = get_df().drop(["Sleep"], axis=1)
 
     if omit_last:
         df = df.iloc[:-1]
@@ -137,7 +137,7 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: in
     long = long.loc[long.value > 0]
     long["duration"] = long.value.apply(format_duration)
 
-    color_map = d.atracker_color_map()
+    color_map = d.atracker_color_map(use_names=True)
 
     fig = px.bar(
         long,
