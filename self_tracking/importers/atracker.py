@@ -62,30 +62,34 @@ def get_events(since: str):
     return df[["start", "duration", "category"]]
 
 
+def import_events():
+    existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+    existing_df["start"] = pd.to_datetime(existing_df.start, utc=True).dt.tz_convert(
+        "Europe/London"
+    )
+
+    since = existing_df.iloc[-1].start - timedelta(days=7)
+    new_df = get_events(since)
+
+    merged_df = (
+        pd.concat([existing_df, new_df])
+        .sort_values("start")
+        .drop_duplicates(["start", "category"])
+        .reset_index(drop=True)
+    )
+
+    merged_df.to_csv(
+        expandvars("$DIARY_DIR/data/atracker.tsv"),
+        sep="\t",
+        index=False,
+        float_format="%.4f",
+    )
+    return merged_df.shape[0] - existing_df.shape[0]
+
+
 def main():
     with yaspin(text="ATracker") as spinner:
-        existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
-        existing_df["start"] = pd.to_datetime(
-            existing_df.start, utc=True
-        ).dt.tz_convert("Europe/London")
-
-        since = existing_df.iloc[-1].start - timedelta(days=7)
-        new_df = get_events(since)
-
-        merged_df = (
-            pd.concat([existing_df, new_df])
-            .sort_values("start")
-            .drop_duplicates(["start", "category"])
-            .reset_index(drop=True)
-        )
-
-        merged_df.to_csv(
-            expandvars("$DIARY_DIR/data/atracker.tsv"),
-            sep="\t",
-            index=False,
-            float_format="%.4f",
-        )
-        added_count = merged_df.shape[0] - existing_df.shape[0]
+        added_count = import_events()
         spinner.text += f" ({added_count} new events)"
         spinner.ok("✔")
 

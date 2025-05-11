@@ -1,10 +1,11 @@
 from typing import Any, cast
 import dash
-from dash import Input, Output, dcc, html
+from dash import Input, Output, clientside_callback, dcc, html
 import plotly.express as px
 import self_tracking.data as d
 import dash_mantine_components as dmc
 import pandas as pd
+from self_tracking.importers.atracker import import_events
 
 dash.register_page(__name__, title="ATracker")
 
@@ -51,6 +52,13 @@ layout = html.Div(
                 SelectControl("atracker-agg", aggregations),
                 Checkbox("atracker-limit", "Limit bars"),
                 Checkbox("atracker-omit-last", "Omit last day"),
+                dmc.Button(
+                    id="atracker-refresh-button",
+                    children="Refresh",
+                    variant="outline",
+                    loaderProps={"type": "dots"},
+                ),
+                dcc.Store(id="atracker-refresh-counter", data=0),
             ],
             gap="xl",
             justify="center",
@@ -76,6 +84,29 @@ def get_df() -> pd.DataFrame:
     return df
 
 
+clientside_callback(
+    """
+    function updateLoadingState(n_clicks) {
+        return true
+    }
+    """,
+    Output("atracker-refresh-button", "loading", allow_duplicate=True),
+    Input("atracker-refresh-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+
+
+@dash.callback(
+    Output("atracker-refresh-counter", "data"),
+    Output("atracker-refresh-button", "loading"),
+    Input("atracker-refresh-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def trigger_refresh(n_clicks):
+    import_events()
+    return (n_clicks, False)
+
+
 @dash.callback(
     Output("atracker-chart", "children"),
     [
@@ -83,9 +114,10 @@ def get_df() -> pd.DataFrame:
         Input("atracker-agg", "value"),
         Input("atracker-limit", "checked"),
         Input("atracker-omit-last", "checked"),
+        Input("atracker-refresh-counter", "data"),
     ],
 )
-def update_graph(rule: str, agg: str, limit: bool, omit_last: bool):
+def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: int):
     df = get_df().drop(["sleep"], axis=1)
 
     if omit_last:
