@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 from yaspin import yaspin
 
-input_path = Path("~/Downloads/strong.csv").expanduser()
+fresh_path = Path("~/Downloads/strong.csv").expanduser()
+export_path = Path(expandvars("$DIARY_DIR/data/exports/strong.csv"))
 output_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
 
 
@@ -20,12 +21,14 @@ def parse_duration(value: str):
 
 def main():
     with yaspin(text="Strong") as spinner:
-        if not input_path.exists():
+        if not fresh_path.exists():
             spinner.text += " (skipped)"
             spinner.ok("→")
             return
 
-        df = pd.read_csv(input_path, parse_dates=["Date"])
+        fresh_path.rename(export_path)
+
+        df = pd.read_csv(export_path, parse_dates=["Date"])
 
         df = pd.DataFrame(
             {
