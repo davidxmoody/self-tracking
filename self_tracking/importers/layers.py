@@ -54,7 +54,7 @@ def atracker_layers():
 def workout_layers():
     workouts = d.workouts().reset_index()
     workouts["date"] = (
-        workouts.start.dt.tz_convert(None).dt.to_period("W-Mon").dt.start_time
+        workouts.start.dt.tz_convert(None).dt.to_period("W").dt.start_time
     )
 
     workouts_pivot = pd.pivot_table(
