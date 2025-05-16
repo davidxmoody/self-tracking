@@ -5,6 +5,7 @@ import subprocess
 from typing import Any
 
 import pandas as pd
+import numpy as np
 from yaspin import yaspin
 
 import self_tracking.data as d
@@ -14,16 +15,17 @@ import self_tracking.data as d
 weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
 
 
-def stringify_index(series: pd.Series):
-    return series.rename(lambda x: str(x.date()))
-
-
 def write_layer(series, category: str, name: str):
-    filepath = expandvars(f"$DIARY_DIR/layers/{category}/{name}.json")
+    filepath = expandvars(f"$DIARY_DIR/layers/{category}/{name}.tsv")
     makedirs(dirname(filepath), exist_ok=True)
-    stringify_index(series[series > 0]).dropna().clip(0, 1).round(2).to_json(
-        filepath, indent=2
+    series.where(lambda x: x > 0).dropna().rename("value").to_csv(
+        filepath, sep="\t", float_format="%.4f"
     )
+
+
+def write_layers(table, category: str):
+    for name in table.columns:
+        write_layer(table[name], category, name)
 
 
 # %%
@@ -35,43 +37,44 @@ def streaks_layers():
         streaks.pivot_table(values="score", index="date", columns="name")
         .resample(**weekly)
         .mean()
+        .clip(0, 1)
+        .replace(0, np.nan)
     )
 
-    for streak in streaks_pivot.columns:
-        write_layer(streaks_pivot[streak], "streaks", streak)
+    write_layers(streaks_pivot, "streaks")
 
 
 # %%
 def atracker_layers():
-    atracker = d.atracker(None).resample(**weekly).sum()
-
-    for category in atracker.columns:
-        non_zero = atracker[category][atracker[category] > 0.0]
-        limit = non_zero.quantile(0.75)
-        layer = non_zero.apply(lambda x: x / limit)
-        write_layer(layer, "atracker", category)
+    atracker = d.atracker(start_date=None).resample(**weekly).sum()
+    write_layers(atracker, "atracker")
 
 
 # %%
 def workout_layers():
-    workouts = d.workouts()
+    workouts = d.workouts().reset_index()
+    workouts["date"] = (
+        workouts.start.dt.tz_convert(None).dt.to_period("W-Mon").dt.start_time
+    )
 
-    for workout_type in workouts.type.unique():
-        durations = (
-            workouts.query(f"type == '{workout_type}'")
-            .duration.resample(**weekly)
-            .sum()
-        )
-        layer = durations / durations.quantile(0.95)
-        write_layer(layer, "workouts", workout_type)
+    workouts_pivot = pd.pivot_table(
+        workouts, index="date", columns="type", values="duration", aggfunc="sum"
+    )
+
+    write_layers(workouts_pivot, "workouts")
 
 
 # %%
 def misc_layers():
-    holidays_layer = (
-        d.holidays().set_index("end").duration.dt.days.resample(**weekly).sum() / 5
+    layer = (
+        d.holidays()
+        .rename(columns={"end": "date"})
+        .set_index("date")
+        .duration.dt.days.resample(**weekly)
+        .sum()
+        .astype("Int64")
     )
-    write_layer(holidays_layer, "misc", "holidays")
+    write_layer(layer, "misc", "holidays")
 
 
 # %%
@@ -96,16 +99,16 @@ def git_layers():
         ).stdout.splitlines()
 
         if commit_dates:
-            commit_dates_layer = (
+            layer = (
                 pd.DataFrame({"date": pd.to_datetime(commit_dates)})
                 .groupby("date")
                 .size()
                 .resample(**weekly)
                 .sum()
-                / 7
-            ) ** 0.5
+                .astype("Int64")
+            )
 
-            write_layer(commit_dates_layer, "git", basename(dirname(repo)))
+            write_layer(layer, "git", basename(dirname(repo)))
 
 
 # %%
