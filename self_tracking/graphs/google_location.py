@@ -1,4 +1,3 @@
-from glob import glob
 import json
 from os.path import expandvars
 from zipfile import ZipFile
@@ -9,7 +8,7 @@ import pandas as pd
 
 
 # %%
-filepath = sorted(glob(expandvars("$HOME/Downloads/????-??-??-google-takeout.zip")))[-1]
+filepath = expandvars("$DIARY_DIR/data/exports/google-locations.zip")
 with ZipFile(filepath) as zf:
     json_data = json.load(zf.open("Takeout/Location History (Timeline)/Records.json"))
 

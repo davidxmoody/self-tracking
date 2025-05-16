@@ -96,7 +96,7 @@ def write_tsv(
 # %%
 def extract_running(root: ET.Element) -> None:
     manual_export = pd.read_table(
-        expandvars("$DIARY_DIR/data/exports/2024-02-14-old-running.tsv"),
+        expandvars("$DIARY_DIR/data/exports/running-manual.tsv"),
         parse_dates=["date"],
     )
     running_manual = pd.DataFrame(
@@ -111,7 +111,7 @@ def extract_running(root: ET.Element) -> None:
     )
 
     garmin_export = pd.read_csv(
-        expandvars("$DIARY_DIR/data/exports/2024-02-14-garmin-export.csv")
+        expandvars("$DIARY_DIR/data/exports/garmin.csv")
     ).query("`Activity Type` == 'Running'")
     running_garmin = pd.DataFrame(
         {
@@ -248,13 +248,13 @@ def extract_weight(root: ET.Element) -> None:
         axis=1,
     )
 
-    weight_old = pd.read_table(
-        expandvars("$DIARY_DIR/data/exports/2024-01-22-old-weights.tsv"),
+    weight_manual = pd.read_table(
+        expandvars("$DIARY_DIR/data/exports/weight-manual.tsv"),
         parse_dates=["date"],
         index_col="date",
     )
 
-    weight = pd.concat([weight_old, weight_new])
+    weight = pd.concat([weight_manual, weight_new])
 
     write_tsv(weight, "weight", dp={"weight": 2, "fat": 3})
 
