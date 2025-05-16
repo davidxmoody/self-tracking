@@ -1,17 +1,31 @@
 from datetime import date, timedelta
-from glob import glob
 from os.path import expandvars
+from pathlib import Path
 from typing import cast
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 import pandas as pd
+from yaspin import yaspin
 
 
 # %%
+fresh_path = Path("~/Downloads/export.zip").expanduser()
+export_path = Path("~/.cache/apple-health-export.zip").expanduser()
+xml_sub_path = "apple_health_export/export.xml"
+
+
+def copy_fresh():
+    if fresh_path.exists():
+        with ZipFile(fresh_path) as zf:
+            if xml_sub_path in zf.namelist():
+                fresh_path.rename(export_path)
+                return True
+    return False
+
+
 def getroot() -> ET.Element:
-    fp = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
-    with ZipFile(fp) as zf:
-        return ET.parse(zf.open("apple_health_export/export.xml")).getroot()
+    with ZipFile(export_path) as zf:
+        return ET.parse(zf.open(xml_sub_path)).getroot()
 
 
 def get_last_full_day(root: ET.Element):
@@ -90,11 +104,11 @@ def write_tsv(
             )
 
     df.to_csv(expandvars(f"$DIARY_DIR/data/{name}.tsv"), sep="\t", index=index)
-    print(f"Written {name}.tsv ({len(df)} records)")
+    return len(df)
 
 
 # %%
-def extract_running(root: ET.Element) -> None:
+def extract_running(root: ET.Element):
     manual_export = pd.read_table(
         expandvars("$DIARY_DIR/data/exports/running-manual.tsv"),
         parse_dates=["date"],
@@ -110,9 +124,9 @@ def extract_running(root: ET.Element) -> None:
         }
     )
 
-    garmin_export = pd.read_csv(
-        expandvars("$DIARY_DIR/data/exports/garmin.csv")
-    ).query("`Activity Type` == 'Running'")
+    garmin_export = pd.read_csv(expandvars("$DIARY_DIR/data/exports/garmin.csv")).query(
+        "`Activity Type` == 'Running'"
+    )
     running_garmin = pd.DataFrame(
         {
             "start": pd.to_datetime(garmin_export.Date).dt.tz_localize("Europe/London"),
@@ -141,7 +155,7 @@ def extract_running(root: ET.Element) -> None:
         [running_manual, running_garmin, running_apple], ignore_index=True
     ).sort_values("start")
 
-    write_tsv(running, "workouts/running", index=False)
+    return write_tsv(running, "workouts/running", index=False)
 
 
 # %%
@@ -150,7 +164,7 @@ def parse_indoor(node):
     return indoor_node.attrib["value"] == "1"
 
 
-def extract_cycling(root: ET.Element) -> None:
+def extract_cycling(root: ET.Element):
     cycling_mixed = pd.DataFrame(
         {
             "start": parse_start(node),
@@ -172,12 +186,13 @@ def extract_cycling(root: ET.Element) -> None:
         ["indoor"], axis=1
     )
 
-    write_tsv(cycling_indoor, "workouts/cycling-indoor", index=False)
-    write_tsv(cycling_outdoor, "workouts/cycling", index=False)
+    c1 = write_tsv(cycling_indoor, "workouts/cycling-indoor", index=False)
+    c2 = write_tsv(cycling_outdoor, "workouts/cycling", index=False)
+    return c1 + c2
 
 
 # %%
-def extract_activity(root: ET.Element) -> None:
+def extract_activity(root: ET.Element):
     activity_sources = ["David’s Apple\xa0Watch"]
 
     activity = pd.concat(
@@ -194,11 +209,11 @@ def extract_activity(root: ET.Element) -> None:
 
     activity = activity.loc["2017-12-16" : get_last_full_day(root)].round(0).astype(int)
 
-    write_tsv(activity, "activity")
+    return write_tsv(activity, "activity")
 
 
 # %%
-def extract_diet(root: ET.Element) -> None:
+def extract_diet(root: ET.Element):
     diet_sources = ["Calorie Counter", "YAZIO", "MyNetDiary"]
 
     diet = pd.concat(
@@ -231,11 +246,11 @@ def extract_diet(root: ET.Element) -> None:
 
     diet = diet.loc[: get_last_full_day(root)]
 
-    write_tsv(diet, "diet")
+    return write_tsv(diet, "diet")
 
 
 # %%
-def extract_weight(root: ET.Element) -> None:
+def extract_weight(root: ET.Element):
     weight_sources = ["Withings"]
 
     weight_new = pd.concat(
@@ -256,11 +271,11 @@ def extract_weight(root: ET.Element) -> None:
 
     weight = pd.concat([weight_manual, weight_new])
 
-    write_tsv(weight, "weight", dp={"weight": 2, "fat": 3})
+    return write_tsv(weight, "weight", dp={"weight": 2, "fat": 3})
 
 
 # %%
-def extract_meditation(root: ET.Element) -> None:
+def extract_meditation(root: ET.Element):
     df = pd.DataFrame(
         {
             "start": parse_start(node),
@@ -277,11 +292,11 @@ def extract_meditation(root: ET.Element) -> None:
 
     df = df.loc[df.duration >= (1 / 60)]
 
-    write_tsv(df, "meditation", index=False)
+    return write_tsv(df, "meditation", index=False)
 
 
 # %%
-def extract_sleep(root: ET.Element) -> None:
+def extract_sleep(root: ET.Element):
     sleep_sources = ["David’s Apple\xa0Watch"]
 
     sleep = pd.DataFrame(
@@ -314,19 +329,29 @@ def extract_sleep(root: ET.Element) -> None:
         index="date", columns="subtype", values="duration", aggfunc="sum"
     ).fillna(0.0)[columns]
 
-    write_tsv(sleep_pivot, "sleep", dp={c: 4 for c in columns})
+    return write_tsv(sleep_pivot, "sleep", dp={c: 4 for c in columns})
 
 
 # %%
 def main():
-    root = getroot()
-    extract_running(root)
-    extract_cycling(root)
-    extract_activity(root)
-    extract_diet(root)
-    extract_weight(root)
-    extract_meditation(root)
-    extract_sleep(root)
+    with yaspin(text="Apple Health") as spinner:
+        if not copy_fresh():
+            spinner.text += " (skipped)"
+            spinner.ok("→")
+            return
+
+        count = 0
+        root = getroot()
+        count += extract_running(root)
+        count += extract_cycling(root)
+        count += extract_activity(root)
+        count += extract_diet(root)
+        count += extract_weight(root)
+        count += extract_meditation(root)
+        count += extract_sleep(root)
+
+        spinner.text += f" ({count} total records)"
+        spinner.ok("✔")
 
 
 if __name__ == "__main__":

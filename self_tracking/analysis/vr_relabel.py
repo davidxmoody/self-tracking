@@ -1,5 +1,4 @@
-from glob import glob
-from os.path import expandvars
+from pathlib import Path
 from typing import Any, cast
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
@@ -9,8 +8,7 @@ import self_tracking.data as d
 
 # %%
 def getroot() -> ET.Element:
-    fp = sorted(glob(expandvars("$HOME/Downloads/????-??-??-apple-health.zip")))[-1]
-    with ZipFile(fp) as zf:
+    with ZipFile(Path("~/.cache/apple-health-export.zip").expanduser()) as zf:
         return ET.parse(zf.open("apple_health_export/export.xml")).getroot()
 
 
@@ -63,7 +61,7 @@ gaming["activity"] = gaming.apply(calculate_activity, axis=1)
 
 
 # %%
-gaming.to_csv(expandvars("gaming.tsv"), sep="\t", index=False)
+gaming.to_csv("gaming.tsv", sep="\t", index=False)
 
 
 # %%
