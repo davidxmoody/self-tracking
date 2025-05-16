@@ -58,7 +58,7 @@ def main():
                 case _:
                     raise Exception(f"Unknown workout type: {workout_type}")
 
-        spinner.text += f" ({count} new workouts)"
+        spinner.text += f" ({count} workouts)"
         spinner.ok("✔")
 
 

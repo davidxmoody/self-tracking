@@ -26,7 +26,7 @@ def main():
                 f_out.writelines(f_in)
                 count += 1
 
-        spinner.text += f" ({count} new routes)"
+        spinner.text += f" ({count} routes)"
         spinner.ok("✔")
 
 

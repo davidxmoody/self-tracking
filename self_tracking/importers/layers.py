@@ -1,6 +1,7 @@
 from glob import glob
 from os import makedirs
 from os.path import basename, dirname, expandvars
+from pathlib import Path
 import subprocess
 from typing import Any
 
@@ -14,18 +15,31 @@ import self_tracking.data as d
 # %%
 weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
 
+layers_dir = Path(expandvars("$DIARY_DIR/layers"))
 
-def write_layer(series, category: str, name: str):
-    filepath = expandvars(f"$DIARY_DIR/layers/{category}/{name}.tsv")
-    makedirs(dirname(filepath), exist_ok=True)
-    series.where(lambda x: x > 0).dropna().rename("value").to_csv(
-        filepath, sep="\t", float_format="%.4f"
+
+def write_layer(series, category: str, name: str) -> int:
+    file = layers_dir / f"{category}/{name}.tsv"
+    file.parent.mkdir(parents=True, exist_ok=True)
+    old_contents = file.read_text() if file.exists() else None
+
+    new_contents = (
+        series.where(lambda x: x > 0)
+        .dropna()
+        .rename("value")
+        .to_csv(sep="\t", float_format="%.4f")
     )
 
+    has_changed = old_contents != new_contents
 
-def write_layers(table, category: str):
-    for name in table.columns:
-        write_layer(table[name], category, name)
+    if has_changed:
+        file.write_text(new_contents)
+
+    return int(has_changed)
+
+
+def write_layers(table, category: str) -> int:
+    return sum(write_layer(table[name], category, name) for name in table.columns)
 
 
 # %%
@@ -41,13 +55,13 @@ def streaks_layers():
         .replace(0, np.nan)
     )
 
-    write_layers(streaks_pivot, "streaks")
+    return write_layers(streaks_pivot, "streaks")
 
 
 # %%
 def atracker_layers():
     atracker = d.atracker(start_date=None).resample(**weekly).sum()
-    write_layers(atracker, "atracker")
+    return write_layers(atracker, "atracker")
 
 
 # %%
@@ -61,7 +75,7 @@ def workout_layers():
         workouts, index="date", columns="type", values="duration", aggfunc="sum"
     )
 
-    write_layers(workouts_pivot, "workouts")
+    return write_layers(workouts_pivot, "workouts")
 
 
 # %%
@@ -74,11 +88,12 @@ def misc_layers():
         .sum()
         .astype("Int64")
     )
-    write_layer(layer, "misc", "holidays")
+    return write_layer(layer, "misc", "holidays")
 
 
 # %%
 def git_layers():
+    count = 0
     repos = glob(expandvars("$P_DIR/*/.git"))
     my_name = subprocess.run(
         ["git", "config", "user.name"], check=True, capture_output=True, text=True
@@ -108,17 +123,21 @@ def git_layers():
                 .astype("Int64")
             )
 
-            write_layer(layer, "git", basename(dirname(repo)))
+            count += write_layer(layer, "git", basename(dirname(repo)))
+
+    return count
 
 
 # %%
 def main():
     with yaspin(text="Layers") as spinner:
-        streaks_layers()
-        atracker_layers()
-        workout_layers()
-        misc_layers()
-        git_layers()
+        count = 0
+        count += streaks_layers()
+        count += atracker_layers()
+        count += workout_layers()
+        count += misc_layers()
+        count += git_layers()
+        spinner.text += f" ({count} layers)"
         spinner.ok("✔")
 
 

@@ -90,7 +90,7 @@ def import_events():
 def main():
     with yaspin(text="ATracker") as spinner:
         added_count = import_events()
-        spinner.text += f" ({added_count} new events)"
+        spinner.text += f" ({added_count} events)"
         spinner.ok("✔")
 
 
