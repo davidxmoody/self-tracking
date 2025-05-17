@@ -17,7 +17,6 @@
 import pandas as pd
 import self_tracking.data as d
 import plotly.express as px
-import plotly.graph_objects as go
 
 
 # %%
@@ -33,7 +32,6 @@ end_date = diet.index.max()
 df = pd.DataFrame(
     {
         "active": activity.active_calories[start_date:end_date],
-        "basal_apple": activity.basal_calories[start_date:end_date],
         "eaten": diet.calories,
         "weight": weight.weight[start_date:end_date],
     }
@@ -44,7 +42,9 @@ df["weight_smoothed"] = df.weight.rolling(
     window=14, center=True, min_periods=1
 ).median()
 
-df["weight_change"] = df.weight_smoothed.diff().shift(-1).fillna(0)
+df["weight_change"] = df.weight_smoothed.diff().shift(-1)
+
+df = df.dropna()
 
 df["calorie_imbalance"] = df.weight_change * 3500
 
@@ -56,50 +56,30 @@ df["basal_smoothed"] = df.basal_estimate.rolling(
 
 
 # %%
-long = df.melt(id_vars="weight", value_vars=["basal_apple", "basal_smoothed"])
-fig = px.scatter(long, x="weight", y="value", color="variable", trendline="ols")
+fig = px.scatter(df, x="weight", y="basal_smoothed", trendline="ols")
 fig.update_yaxes(range=[1200, 2600])
 fig
 
 
 # %%
-results = px.get_trendline_results(fig)
-models = results.set_index("variable").px_fit_results.to_dict()
-
-
-def predict(model, value):
-    return int(round(model.params[0] + value * model.params[1]))
-
+model = px.get_trendline_results(fig).iloc[0, 0]
 
 df["basal_pred"] = df.weight_smoothed.apply(
-    lambda w: predict(models["basal_smoothed"], w)
+    lambda x: int(round(model.params[0] + x * model.params[1]))
 )
 
 df["balance"] = df.eaten - df.active - df.basal_pred
+df["weight_pred"] = df.weight.iloc[0] + (df.balance.cumsum() / 3500)
 
 
 # %%
-fig = go.Figure()
-fig.add_trace(
-    go.Scatter(
-        x=df.index,
-        y=df.balance.cumsum(),
-        name="Energy balance",
-        yaxis="y",
-        mode="lines",
-    )
+fig = px.line(
+    df.reset_index().melt(
+        id_vars="date", value_vars=["weight_pred", "weight_smoothed"]
+    ),
+    x="date",
+    y="value",
+    color="variable",
 )
-fig.add_trace(
-    go.Scatter(
-        x=df.index,
-        y=df.weight_smoothed,
-        name="Weight",
-        yaxis="y2",
-        mode="lines",
-    )
-)
-fig.update_layout(
-    yaxis=dict(title="Calories"),
-    yaxis2=dict(title="Weight (lbs)", overlaying="y", side="right"),
-)
+fig.update_layout(yaxis=dict(title="Weight (lb)"))
 fig
