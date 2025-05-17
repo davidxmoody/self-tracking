@@ -58,11 +58,42 @@ def eaten():
     return new_df.shape[0] - old_size
 
 
+def weight():
+    import_file = get_latest_and_cleanup(health_dir / "Weight")
+    fat_import_file = get_latest_and_cleanup(health_dir / "Fat")
+    if not import_file or not fat_import_file:
+        return 0
+
+    df = pd.read_csv(import_file, parse_dates=["Date"])
+    df = df.rename(columns={"Date": "date", "Body mass(lb)": "weight"})
+    df["date"] = df.date.dt.date.astype(str)
+    df = df.groupby("date").min()
+    df["weight"] = df.weight.apply(lambda x: f"{x:.2f}")
+
+    fat_df = pd.read_csv(fat_import_file, parse_dates=["Date"])
+    fat_df = fat_df.rename(columns={"Date": "date", "Body fat percentage(%)": "fat"})
+    fat_df["date"] = fat_df.date.dt.date.astype(str)
+    fat_df = fat_df.groupby("date").min()
+    df["fat"] = fat_df.fat.apply(lambda x: f"{x:.3f}")
+
+    df = df.reset_index()
+
+    data_file = data_dir / "weight.tsv"
+    existing_df = pd.read_table(data_file, dtype=str)
+    old_size = existing_df.shape[0]
+
+    new_df = pd.concat([existing_df, df.loc[~df.date.isin(existing_df.date)]])
+    new_df.to_csv(data_file, index=False, sep="\t")
+
+    return new_df.shape[0] - old_size
+
+
 def main():
     with yaspin(text="Apple Health incremental") as spinner:
         count = 0
         count += activity()
         count += eaten()
+        count += weight()
 
         spinner.text += f" ({count} records)"
         spinner.ok("✔")
