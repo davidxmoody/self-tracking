@@ -33,7 +33,7 @@ def main():
         for workout_type, group in df.groupby("Activity"):
             match workout_type:
                 case "Cycling":
-                    filepath = export_dir.joinpath("cycling.tsv")
+                    filepath = export_dir / "cycling.tsv"
 
                     workout_df = pd.read_table(filepath)
                     size_before = workout_df.shape[0]
@@ -49,6 +49,21 @@ def main():
                     )
                     workout_df["distance"] = workout_df.distance.apply(
                         lambda x: f"{x:.2f}"
+                    )
+                    workout_df = workout_df.drop_duplicates("start")
+
+                    count += workout_df.shape[0] - size_before
+                    workout_df.to_csv(filepath, sep="\t", index=False)
+
+                case "Traditional Strength Training":
+                    filepath = export_dir / "strength.tsv"
+
+                    workout_df = pd.read_table(filepath)
+                    size_before = workout_df.shape[0]
+
+                    workout_df = pd.concat([workout_df, group[["start", "duration"]]])
+                    workout_df["duration"] = workout_df.duration.apply(
+                        lambda x: f"{x:.4f}"
                     )
                     workout_df = workout_df.drop_duplicates("start")
 
