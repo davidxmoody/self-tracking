@@ -1,7 +1,7 @@
-from typing import Any, cast
 import dash
 from dash import Input, Output, clientside_callback, dcc, html
 import plotly.express as px
+from self_tracking.dashboard.components.controls import Select, Checkbox
 import self_tracking.data as d
 import dash_mantine_components as dmc
 import pandas as pd
@@ -24,32 +24,12 @@ aggregations = {
 }
 
 
-def SelectControl(id: str, options: dict[str, str]):
-    return dmc.SegmentedControl(
-        id=id,
-        value=list(options.values())[0],
-        data=cast(Any, [{"value": v, "label": k} for k, v in options.items()]),
-        persistence_type="local",
-        persistence=True,
-    )
-
-
-def Checkbox(id: str, label: str, checked=True):
-    return dmc.Checkbox(
-        id=id,
-        label=label,
-        checked=checked,
-        persistence_type="local",
-        persistence=True,
-    )
-
-
 layout = html.Div(
     [
         dmc.Group(
             [
-                SelectControl("atracker-period", periods),
-                SelectControl("atracker-agg", aggregations),
+                Select("atracker-period", periods),
+                Select("atracker-agg", aggregations),
                 Checkbox("atracker-limit", "Limit bars"),
                 Checkbox("atracker-omit-last", "Omit last day"),
                 Checkbox("atracker-hide-sleep", "Hide Sleep"),
@@ -59,12 +39,12 @@ layout = html.Div(
                     variant="outline",
                     loaderProps={"type": "dots"},
                 ),
-                dcc.Store(id="atracker-refresh-counter", data=0),
             ],
             gap="xl",
             justify="center",
         ),
         html.Div(id="atracker-chart"),
+        dcc.Store(id="atracker-refresh-counter", data=0),
     ]
 )
 
