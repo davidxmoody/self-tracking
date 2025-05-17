@@ -6,7 +6,9 @@ from yaspin import yaspin
 
 fresh_path = Path("~/Downloads/strong.csv").expanduser()
 export_path = Path(expandvars("$DIARY_DIR/data/exports/strong.csv"))
-output_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
+
+workouts_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
+exercises_path = Path(expandvars("$DIARY_DIR/data/strength-exercises.tsv"))
 
 
 def parse_duration(value: str):
@@ -37,8 +39,8 @@ def main():
                 "title": df["Workout Name"],
                 "exercise": df["Exercise Name"],
                 "weight": df.Weight.replace(0, np.nan),
-                "reps": df.Reps.replace(0, np.nan),
-                "seconds": df.Seconds.replace(0, np.nan),
+                "reps": df.Reps.replace(0, np.nan).astype("Int64"),
+                "seconds": df.Seconds.replace(0, np.nan).astype("Int64"),
             }
         )
 
@@ -50,7 +52,10 @@ def main():
             "weight",
         ] -= 2.5
 
-        df.to_csv(output_path, sep="\t", index=False)
+        workouts_df = df[["start", "duration"]].drop_duplicates()
+        workouts_df.to_csv(workouts_path, sep="\t", index=False)
+
+        df.to_csv(exercises_path, sep="\t", index=False)
 
         spinner.ok("✔")
 

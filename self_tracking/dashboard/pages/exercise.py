@@ -37,13 +37,7 @@ def update_graph(rule: str):
     r = d.running().distance.resample(rule).sum()
     co = d.cycling().calories.resample(rule).sum()
     ci = d.cycling_indoor().calories.resample(rule).sum()
-    s = (
-        d.strength()
-        .drop_duplicates("start")
-        .set_index("start")
-        .title.resample(rule)
-        .size()
-    )
+    s = d.strength().duration.resample(rule).size()
     c = d.climbing().duration.clip(0, 3).resample(rule).sum()
 
     fig = make_subplots(

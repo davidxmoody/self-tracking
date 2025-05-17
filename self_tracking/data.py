@@ -120,8 +120,13 @@ def running():
 
 
 def strength():
-    df = read_events("workouts/strength", index_col=None)
+    return read_events("workouts/strength")
+
+
+def strength_exercises():
+    df = read_events("strength-exercises", index_col=None)
     df["reps"] = df.reps.astype("Int64")
+    df["seconds"] = df.seconds.astype("Int64")
     return df
 
 
@@ -139,7 +144,7 @@ def workouts():
         cycling_indoor().assign(type="cycling_indoor"),
         cycling().assign(type="cycling"),
         running().assign(type="running"),
-        strength().drop_duplicates("start").set_index("start").assign(type="strength"),
+        strength().assign(type="strength"),
     ]
 
     return pd.concat([df[["duration", "type"]] for df in events]).sort_index()
