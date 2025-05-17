@@ -52,6 +52,7 @@ layout = html.Div(
                 SelectControl("atracker-agg", aggregations),
                 Checkbox("atracker-limit", "Limit bars"),
                 Checkbox("atracker-omit-last", "Omit last day"),
+                Checkbox("atracker-hide-sleep", "Hide Sleep"),
                 dmc.Button(
                     id="atracker-refresh-button",
                     children="Refresh",
@@ -127,11 +128,17 @@ def format_duration(hours: float):
         Input("atracker-agg", "value"),
         Input("atracker-limit", "checked"),
         Input("atracker-omit-last", "checked"),
+        Input("atracker-hide-sleep", "checked"),
         Input("atracker-refresh-counter", "data"),
     ],
 )
-def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, n_clicks: int):
-    df = get_df().drop(["Sleep"], axis=1)
+def update_graph(
+    rule: str, agg: str, limit: bool, omit_last: bool, hide_sleep: bool, n_clicks: int
+):
+    df = get_df()
+
+    if hide_sleep:
+        df = df.drop(["Sleep"], axis=1)
 
     if omit_last:
         df = df.iloc[:-1]
