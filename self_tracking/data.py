@@ -35,7 +35,7 @@ def atracker_events(start_date: str | None = None):
         .reset_index(drop=True)
     )
 
-    df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=4)).dt.date)
+    df["date"] = pd.to_datetime((cast(Any, df.start) - pd.Timedelta(hours=6)).dt.date)
 
     if start_date:
         df = df.loc[df.date >= start_date]
