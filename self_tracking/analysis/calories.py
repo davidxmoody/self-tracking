@@ -27,6 +27,7 @@ weight = d.weight()
 
 # %%
 start_date = diet.index.min()
+# start_date = "2021-01-01"
 end_date = diet.index.max()
 
 df = pd.DataFrame(
@@ -83,3 +84,10 @@ fig = px.line(
 )
 fig.update_layout(yaxis=dict(title="Weight (lb)"))
 fig
+
+
+# %%
+df["basal_pred2"] = (df.eaten.cumsum() - df.active.cumsum() - df.weight_smoothed * 3500).diff()
+
+# weight = cum(eaten) - cum(active) - cum(basal)
+# basal = diff(cum(eaten) - cum(active) - weight)
