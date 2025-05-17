@@ -8,9 +8,7 @@ dash.register_page(__name__)
 
 
 def calories_figure():
-    net_calories = d.net_calories().rename("net_calories")
-
-    return px.bar(net_calories.resample("MS").sum())
+    return px.bar(d.activity().active_calories.resample("MS").mean())
 
 
 layout = dcc.Graph(figure=calories_figure())

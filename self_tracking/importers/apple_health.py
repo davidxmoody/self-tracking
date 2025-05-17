@@ -195,16 +195,12 @@ def extract_cycling(root: ET.Element):
 def extract_activity(root: ET.Element):
     activity_sources = ["David’s Apple\xa0Watch"]
 
-    activity = pd.concat(
+    activity = pd.DataFrame(
         {
             "active_calories": gather_records(
                 root, "ActiveEnergyBurned", "Cal", activity_sources
             ),
-            "basal_calories": gather_records(
-                root, "BasalEnergyBurned", "kcal", activity_sources
-            ),
-        },
-        axis=1,
+        }
     )
 
     activity = activity.loc["2017-12-16" : get_last_full_day(root)].round(0).astype(int)

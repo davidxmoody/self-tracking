@@ -164,14 +164,6 @@ def weight():
     return read_date_indexed("weight")
 
 
-def net_calories():
-    eaten = diet().calories
-    activity_df = activity()
-    active = activity_df.active_calories
-    basal = activity_df.basal_calories
-    return (eaten - active - basal).dropna().astype(int)
-
-
 # %%
 def eras():
     df = pd.read_table(filepath("eras"), parse_dates=["start"])
