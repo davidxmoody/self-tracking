@@ -1,9 +1,9 @@
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 import zipfile
 import pandas as pd
 
 
-zip_path = expandvars("$DIARY_DIR/data/exports/audible.zip")
+zip_path = diary_dir / "data/exports/audible.zip"
 
 with zipfile.ZipFile(zip_path, "r") as zf:
     with zf.open("Audible.Listening/Account Holder/Listening.csv") as file:
@@ -28,7 +28,7 @@ df = df.groupby(["date", "title"]).sum().reset_index()
 df = df.loc[df.duration > (1 / 60)]
 
 df.to_csv(
-    expandvars("$DIARY_DIR/data/audible.tsv"),
+    diary_dir / "data/audible.tsv",
     sep="\t",
     index=False,
     float_format="%.4f",

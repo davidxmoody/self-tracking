@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-from os.path import expandvars, getmtime
 from typing import Any, cast
 import pandas as pd
+from self_tracking.dirs import diary_dir
 
 
 # %%
 def filepath(name: str):
-    return expandvars(f"$DIARY_DIR/data/{name}.tsv")
+    return diary_dir / f"data/{name}.tsv"
 
 
 def read_date_indexed(name: str):
@@ -53,7 +53,7 @@ def atracker_mtime():
         "workouts/running",
         "workouts/strength",
     ]
-    return max(getmtime(filepath(name)) for name in names)
+    return max(filepath(name).stat().st_mtime for name in names)
 
 
 def atracker_categories():

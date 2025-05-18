@@ -1,13 +1,9 @@
 import gzip
-from os.path import expandvars
-from pathlib import Path
 from yaspin import yaspin
+from self_tracking.dirs import diary_dir, icloud_dir
 
-import_dir = Path(
-    expandvars("$HOME/Library/Mobile Documents/com~apple~CloudDocs/Health/Routes")
-)
-
-export_dir = Path(expandvars("$DIARY_DIR/data/routes"))
+import_dir = icloud_dir / "Health/Routes"
+export_dir = diary_dir / "data/routes"
 
 
 def main():

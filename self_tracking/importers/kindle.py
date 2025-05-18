@@ -1,9 +1,9 @@
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 import zipfile
 import pandas as pd
 
 
-zip_path = expandvars("$DIARY_DIR/data/exports/kindle.zip")
+zip_path = diary_dir / "data/exports/kindle.zip"
 filepaths = {
     "reading": "Kindle.ReadingInsights/datasets/Kindle.reading-insights-sessions_with_adjustments/Kindle.reading-insights-sessions_with_adjustments.csv",
     "whispersync": "Digital.Content.Whispersync/whispersync.csv",
@@ -45,7 +45,7 @@ df = df.groupby(["date", "title"]).sum().reset_index()
 df = df.loc[df.duration > (1 / 60)]
 
 df.to_csv(
-    expandvars("$DIARY_DIR/data/kindle.tsv"),
+    diary_dir / "data/kindle.tsv",
     sep="\t",
     index=False,
     float_format="%.4f",

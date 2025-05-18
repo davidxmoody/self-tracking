@@ -1,13 +1,9 @@
-from os.path import expandvars
-from pathlib import Path
+from self_tracking.dirs import diary_dir, icloud_dir
 from yaspin import yaspin
 import pandas as pd
 
-import_dir = Path(
-    expandvars("$HOME/Library/Mobile Documents/com~apple~CloudDocs/Health/Workouts")
-)
-
-export_dir = Path(expandvars("$DIARY_DIR/data/workouts"))
+import_dir = icloud_dir / "Health/Workouts"
+export_dir = diary_dir / "data/workouts"
 
 
 def main():

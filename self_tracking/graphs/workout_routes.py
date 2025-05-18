@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from glob import glob
 import gzip
-from os.path import basename, expandvars
+from pathlib import Path
+from self_tracking.dirs import diary_dir
 import xml.etree.ElementTree as ET
 
 import folium
@@ -15,8 +15,8 @@ class Route:
     activity: str
     path: list[tuple[float, float]]
 
-    def __init__(self, filepath: str):
-        (self.date, time, self.activity) = basename(filepath)[:-7].split("_")
+    def __init__(self, filepath: Path):
+        (self.date, time, self.activity) = filepath.name[:-7].split("_")
         self.time = time.replace("-", ":")[:-3]
 
         with gzip.open(filepath) as file:
@@ -28,7 +28,7 @@ class Route:
             ]
 
 
-routes = [Route(fp) for fp in glob(expandvars("$DIARY_DIR/data/routes/*.gpx.gz"))]
+routes = [Route(fp) for fp in diary_dir.glob("data/routes/*.gpx.gz")]
 
 
 # %%

@@ -1,14 +1,13 @@
 import json
-from os.path import expandvars
 from zipfile import ZipFile
-
+from self_tracking.dirs import diary_dir
 import folium
 from folium.plugins import HeatMap
 import pandas as pd
 
 
 # %%
-filepath = expandvars("$DIARY_DIR/data/exports/google-locations.zip")
+filepath = diary_dir / "data/exports/google-locations.zip"
 with ZipFile(filepath) as zf:
     json_data = json.load(zf.open("Takeout/Location History (Timeline)/Records.json"))
 

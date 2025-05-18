@@ -1,7 +1,7 @@
-from os.path import expandvars
 import zipfile
 import pandas as pd
 import self_tracking.data as d
+from self_tracking.dirs import diary_dir
 
 
 # %%
@@ -10,7 +10,7 @@ end_date = "2025-03-30"  # Exclusive, date started tracking separate audiobook c
 
 
 # %%
-zip_path = expandvars("$DIARY_DIR/data/exports/kindle.zip")
+zip_path = diary_dir / "data/exports/kindle.zip"
 filepaths = {
     "reading": "Kindle.ReadingInsights/datasets/Kindle.reading-insights-sessions_with_adjustments/Kindle.reading-insights-sessions_with_adjustments.csv",
     "whispersync": "Digital.Content.Whispersync/whispersync.csv",
@@ -55,7 +55,7 @@ kindle["date"] = pd.to_datetime((kindle.start - pd.Timedelta(hours=4)).dt.date)
 
 
 # %%
-zip_path = expandvars("$DIARY_DIR/data/exports/audible.zip")
+zip_path = diary_dir / "data/exports/audible.zip"
 
 with zipfile.ZipFile(zip_path, "r") as zf:
     with zf.open("Audible.Listening/Account Holder/Listening.csv") as file:
@@ -211,7 +211,7 @@ audio_times = [str(pd.to_datetime(line.strip(), utc=True).tz_convert("Europe/Lon
 
 
 # %%
-filepath = expandvars("$DIARY_DIR/data/atracker.tsv")
+filepath = diary_dir / "data/atracker.tsv"
 aevents = pd.read_table(filepath)
 
 aevents.loc[aevents.start.isin(audio_times) & (aevents.category == "reading"), "category"] = "audiobook"

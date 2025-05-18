@@ -18,7 +18,7 @@
 
 
 # %% jupyter={"source_hidden": true}
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 import pandas as pd
 import plotly.express as px
 
@@ -28,11 +28,9 @@ import plotly.express as px
 
 
 # %% jupyter={"source_hidden": true}
-reading = pd.read_table(expandvars("$DIARY_DIR/data/kindle.tsv"), parse_dates=["date"])
+reading = pd.read_table(diary_dir / "data/kindle.tsv", parse_dates=["date"])
 
-listening = pd.read_table(
-    expandvars("$DIARY_DIR/data/audible.tsv"), parse_dates=["date"]
-)
+listening = pd.read_table(diary_dir / "data/audible.tsv", parse_dates=["date"])
 
 reading["audio"] = False
 listening["audio"] = True

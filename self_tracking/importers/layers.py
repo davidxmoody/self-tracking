@@ -1,7 +1,4 @@
-from glob import glob
-from os import makedirs
-from os.path import basename, dirname, expandvars
-from pathlib import Path
+from self_tracking.dirs import diary_dir, projects_dir
 import subprocess
 from typing import Any
 
@@ -15,11 +12,9 @@ import self_tracking.data as d
 # %%
 weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
 
-layers_dir = Path(expandvars("$DIARY_DIR/layers"))
-
 
 def write_layer(series, category: str, name: str) -> int:
-    file = layers_dir / f"{category}/{name}.tsv"
+    file = diary_dir / f"layers/{category}/{name}.tsv"
     file.parent.mkdir(parents=True, exist_ok=True)
     old_contents = file.read_text() if file.exists() else None
 
@@ -94,7 +89,7 @@ def misc_layers():
 # %%
 def git_layers():
     count = 0
-    repos = glob(expandvars("$P_DIR/*/.git"))
+    repos = projects_dir.glob("*/.git")
     my_name = subprocess.run(
         ["git", "config", "user.name"], check=True, capture_output=True, text=True
     ).stdout.strip()
@@ -123,7 +118,7 @@ def git_layers():
                 .astype("Int64")
             )
 
-            count += write_layer(layer, "git", basename(dirname(repo)))
+            count += write_layer(layer, "git", repo.parent.name)
 
     return count
 

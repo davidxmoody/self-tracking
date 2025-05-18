@@ -1,6 +1,5 @@
 from datetime import date, timedelta
-from os.path import expandvars
-from pathlib import Path
+from self_tracking.dirs import diary_dir, downloads_dir, cache_dir
 from typing import cast
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
@@ -9,8 +8,8 @@ from yaspin import yaspin
 
 
 # %%
-fresh_path = Path("~/Downloads/export.zip").expanduser()
-export_path = Path("~/.cache/apple-health-export.zip").expanduser()
+fresh_path = downloads_dir / "export.zip"
+export_path = cache_dir / "apple-health-export.zip"
 xml_sub_path = "apple_health_export/export.xml"
 
 
@@ -103,14 +102,14 @@ def write_tsv(
                 lambda x: f"{x:.{decimals}f}" if pd.notnull(x) else ""
             )
 
-    df.to_csv(expandvars(f"$DIARY_DIR/data/{name}.tsv"), sep="\t", index=index)
+    df.to_csv(diary_dir / f"data/{name}.tsv", sep="\t", index=index)
     return len(df)
 
 
 # %%
 def extract_running(root: ET.Element):
     manual_export = pd.read_table(
-        expandvars("$DIARY_DIR/data/exports/running-manual.tsv"),
+        diary_dir / "data/exports/running-manual.tsv",
         parse_dates=["date"],
     )
     running_manual = pd.DataFrame(
@@ -124,7 +123,7 @@ def extract_running(root: ET.Element):
         }
     )
 
-    garmin_export = pd.read_csv(expandvars("$DIARY_DIR/data/exports/garmin.csv")).query(
+    garmin_export = pd.read_csv(diary_dir / "data/exports/garmin.csv").query(
         "`Activity Type` == 'Running'"
     )
     running_garmin = pd.DataFrame(
@@ -260,7 +259,7 @@ def extract_weight(root: ET.Element):
     )
 
     weight_manual = pd.read_table(
-        expandvars("$DIARY_DIR/data/exports/weight-manual.tsv"),
+        diary_dir / "data/exports/weight-manual.tsv",
         parse_dates=["date"],
         index_col="date",
     )

@@ -1,14 +1,13 @@
-from pathlib import Path
-from os.path import expandvars
+from self_tracking.dirs import diary_dir, downloads_dir
 import numpy as np
 import pandas as pd
 from yaspin import yaspin
 
-fresh_path = Path("~/Downloads/strong.csv").expanduser()
-export_path = Path(expandvars("$DIARY_DIR/data/exports/strong.csv"))
+fresh_path = downloads_dir / "strong.csv"
+export_path = diary_dir / "data/exports/strong.csv"
 
-workouts_path = Path(expandvars("$DIARY_DIR/data/workouts/strength.tsv"))
-exercises_path = Path(expandvars("$DIARY_DIR/data/strength-exercises.tsv"))
+workouts_path = diary_dir / "data/workouts/strength.tsv"
+exercises_path = diary_dir / "data/strength-exercises.tsv"
 
 
 def parse_duration(value: str):

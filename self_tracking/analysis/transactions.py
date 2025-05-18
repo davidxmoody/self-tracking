@@ -1,12 +1,11 @@
 import pandas as pd
-from pathlib import Path
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 
 
 # %%
 input_files = [
-    Path(expandvars("$DIARY_DIR/misc/2025-04-30-santander-transactions.txt")),
-    Path(expandvars("$DIARY_DIR/misc/2020-04-13-santander-transactions.txt")),
+    diary_dir / "misc/2025-04-30-santander-transactions.txt",
+    diary_dir / "misc/2020-04-13-santander-transactions.txt",
 ]
 
 transactions = []

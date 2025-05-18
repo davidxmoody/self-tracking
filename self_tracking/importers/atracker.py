@@ -1,5 +1,5 @@
 from datetime import timedelta
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 import re
 import subprocess
 from yaspin import yaspin
@@ -63,7 +63,7 @@ def get_events(since: str):
 
 
 def import_events():
-    existing_df = pd.read_table(expandvars("$DIARY_DIR/data/atracker.tsv"))
+    existing_df = pd.read_table(diary_dir / "data/atracker.tsv")
     existing_df["start"] = pd.to_datetime(existing_df.start, utc=True).dt.tz_convert(
         "Europe/London"
     )
@@ -79,7 +79,7 @@ def import_events():
     )
 
     merged_df.to_csv(
-        expandvars("$DIARY_DIR/data/atracker.tsv"),
+        diary_dir / "data/atracker.tsv",
         sep="\t",
         index=False,
         float_format="%.4f",

@@ -1,10 +1,7 @@
-from os.path import expandvars
+from self_tracking.dirs import diary_dir, icloud_dir
 from pathlib import Path
 from yaspin import yaspin
 import pandas as pd
-
-health_dir = Path("~/Library/Mobile Documents/com~apple~CloudDocs/Health").expanduser()
-data_dir = Path(expandvars("$DIARY_DIR/data"))
 
 
 def get_latest_and_cleanup(dir: Path, pattern: str = "*.txt"):
@@ -17,7 +14,7 @@ def get_latest_and_cleanup(dir: Path, pattern: str = "*.txt"):
 
 
 def activity():
-    import_file = get_latest_and_cleanup(health_dir / "ActiveEnergy")
+    import_file = get_latest_and_cleanup(icloud_dir / "Health/ActiveEnergy")
     if not import_file:
         return 0
 
@@ -28,7 +25,7 @@ def activity():
     df = df.iloc[:-1]
     df["active_calories"] = df.active_calories.round(0).astype(int)
 
-    data_file = data_dir / "activity.tsv"
+    data_file = diary_dir / "data/activity.tsv"
     existing_df = pd.read_table(data_file)
     old_size = existing_df.shape[0]
 
@@ -39,7 +36,7 @@ def activity():
 
 
 def eaten():
-    import_file = get_latest_and_cleanup(health_dir / "EatenEnergy")
+    import_file = get_latest_and_cleanup(icloud_dir / "Health/EatenEnergy")
     if not import_file:
         return 0
 
@@ -48,7 +45,7 @@ def eaten():
     df = df.iloc[:-1]
     df["calories"] = df.calories.round(0).astype(int)
 
-    data_file = data_dir / "diet.tsv"
+    data_file = diary_dir / "data/diet.tsv"
     existing_df = pd.read_table(data_file, dtype=str)
     old_size = existing_df.shape[0]
 
@@ -59,8 +56,8 @@ def eaten():
 
 
 def weight():
-    import_file = get_latest_and_cleanup(health_dir / "Weight")
-    fat_import_file = get_latest_and_cleanup(health_dir / "Fat")
+    import_file = get_latest_and_cleanup(icloud_dir / "Health/Weight")
+    fat_import_file = get_latest_and_cleanup(icloud_dir / "Health/Fat")
     if not import_file or not fat_import_file:
         return 0
 
@@ -78,7 +75,7 @@ def weight():
 
     df = df.reset_index()
 
-    data_file = data_dir / "weight.tsv"
+    data_file = diary_dir / "data/weight.tsv"
     existing_df = pd.read_table(data_file, dtype=str)
     old_size = existing_df.shape[0]
 

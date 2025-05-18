@@ -1,5 +1,5 @@
 from io import StringIO
-from os.path import expandvars
+from self_tracking.dirs import diary_dir
 import subprocess
 from yaspin import yaspin
 import pandas as pd
@@ -26,7 +26,7 @@ def main():
         df = df[["start", "duration", "place"]]
 
         df.to_csv(
-            expandvars("$DIARY_DIR/data/workouts/climbing.tsv"),
+            diary_dir / "data/workouts/climbing.tsv",
             sep="\t",
             index=False,
             float_format="%.4f",
