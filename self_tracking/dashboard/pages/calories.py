@@ -18,6 +18,14 @@ periods = {
     "Daily": "D",
 }
 
+period_offsets = {
+    "YS": pd.Timedelta(days=365 / 2),
+    "QS": pd.Timedelta(days=365 / 8),
+    "MS": pd.Timedelta(days=15),
+    "W-MON": pd.Timedelta(days=3.5),
+    "D": pd.Timedelta(hours=12),
+}
+
 aggregations = {
     "Daily average": "mean",
     "Total": "sum",
@@ -54,29 +62,20 @@ def update_graph(rule: str, agg: str):
     active = d.activity().active_calories[start:end]
 
     weight = d.weight().weight.reindex(pd.date_range(start, end, freq="D"))
-    weight = (
-        weight.interpolate().rolling(window=14, center=True, min_periods=1).median()
-    )
+    weight = weight.interpolate().rolling(window=14, center=True, min_periods=1).mean()
 
-    # weight_change = weight.diff().shift(-1)
-    # calorie_imbalance = weight_change * 3500
-    # basal = eaten - active - calorie_imbalance
-    # basal = basal.ffill().rolling(window=14, center=True, min_periods=1).mean()
-
-    basal = weight * 12.93 - 100
+    basal = weight * 12.93 - 100 # From previous analysis, TODO re-calculate here
 
     df = pd.DataFrame(
         {
             "active": active,
             "eaten": eaten,
             "basal": basal,
-            "weight": weight,
         }
     )
 
-    df = df.resample(rule, closed="left", label="left").agg(
-        {"active": agg, "eaten": agg, "basal": agg, "weight": "mean"}
-    )
+    df = df.resample(rule, closed="left", label="left").agg(agg)
+    df.index = df.index + period_offsets[rule]
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.05
@@ -120,8 +119,8 @@ def update_graph(rule: str, agg: str):
 
     fig.add_trace(
         go.Scatter(
-            x=df.index,
-            y=df.weight,
+            x=weight.index,
+            y=weight,
             name="Weight",
             mode="lines",
         ),
