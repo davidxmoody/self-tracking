@@ -5,6 +5,7 @@ from self_tracking.dashboard.components.controls import Select
 import self_tracking.data as d
 import dash_mantine_components as dmc
 import pandas as pd
+from plotly.subplots import make_subplots
 
 dash.register_page(__name__)
 
@@ -69,12 +70,17 @@ def update_graph(rule: str, agg: str):
             "active": active,
             "eaten": eaten,
             "basal": basal,
+            "weight": weight,
         }
     )
 
-    df = df.resample(rule, closed="left", label="left").agg(agg)
+    df = df.resample(rule, closed="left", label="left").agg(
+        {"active": agg, "eaten": agg, "basal": agg, "weight": "mean"}
+    )
 
-    fig = go.Figure()
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.05
+    )
 
     fig.add_trace(
         go.Bar(
@@ -83,7 +89,9 @@ def update_graph(rule: str, agg: str):
             name="Eaten",
             offsetgroup=0,
             marker_color="green",
-        )
+        ),
+        row=1,
+        col=1,
     )
 
     fig.add_trace(
@@ -93,7 +101,9 @@ def update_graph(rule: str, agg: str):
             name="Basal",
             offsetgroup=1,
             marker_color="orange",
-        )
+        ),
+        row=1,
+        col=1,
     )
 
     fig.add_trace(
@@ -103,11 +113,24 @@ def update_graph(rule: str, agg: str):
             name="Active",
             offsetgroup=1,
             marker_color="red",
-        )
+        ),
+        row=1,
+        col=1,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=df.index,
+            y=df.weight,
+            name="Weight",
+            mode="lines",
+        ),
+        row=2,
+        col=1,
     )
 
     fig.update_layout(
-        height=500,
+        height=650,
         xaxis_title=None,
         yaxis_title=None,
         legend_title=None,
