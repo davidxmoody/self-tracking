@@ -26,13 +26,20 @@ weight = d.weight()
 
 
 # %%
+climbing = d.climbing()
+climbing.index = pd.to_datetime(climbing.index.tz_convert(None).date).rename("date")
+climbing["calories"] = climbing.duration.clip(0, 2) * 200
+
+
+# %%
 start_date = diet.index.min()
-# start_date = "2021-01-01"
+# start_date = "2024-07-01"
 end_date = diet.index.max()
 
 df = pd.DataFrame(
     {
-        "active": activity.active_calories[start_date:end_date],
+        "active": activity.active_calories[start_date:end_date]
+        + climbing.calories.reindex(pd.date_range(start_date, end_date)).fillna(0),
         "eaten": diet.calories,
         "weight": weight.weight[start_date:end_date],
     }
@@ -87,7 +94,13 @@ fig
 
 
 # %%
-df["basal_pred2"] = (df.eaten.cumsum() - df.active.cumsum() - df.weight_smoothed * 3500).diff()
+df["basal_pred2"] = (
+    df.eaten.cumsum() - df.active.cumsum() - df.weight_smoothed * 3500
+).diff()
 
 # weight = cum(eaten) - cum(active) - cum(basal)
 # basal = diff(cum(eaten) - cum(active) - weight)
+
+
+# %%
+px.line((df.eaten - df.active).cumsum())
