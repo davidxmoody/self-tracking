@@ -5,7 +5,9 @@ from self_tracking.dashboard.components.controls import Select
 import self_tracking.data as d
 import dash_mantine_components as dmc
 import pandas as pd
+import numpy as np
 from plotly.subplots import make_subplots
+import statsmodels.api as sm
 
 dash.register_page(__name__)
 
@@ -61,10 +63,18 @@ def update_graph(rule: str, agg: str):
 
     active = d.activity().active_calories[start:end]
 
-    weight = d.weight().weight.reindex(pd.date_range(start, end, freq="D"))
-    weight = weight.interpolate().rolling(window=14, center=True, min_periods=1).mean()
+    weight_raw = d.weight().weight[start:end]
 
-    basal = weight * 12.93 - 100 # From previous analysis, TODO re-calculate here
+    lowess_result = sm.nonparametric.lowess(
+        weight_raw, weight_raw.index.astype(np.int64), frac=0.03
+    )
+    weight = (
+        pd.Series(data=lowess_result[:, 1], index=pd.to_datetime(lowess_result[:, 0]))
+        .reindex(pd.date_range(start, end))
+        .interpolate(method="time")
+    )
+
+    basal = weight * 12.5  # Approximation from previous analysis
 
     df = pd.DataFrame(
         {
@@ -78,39 +88,14 @@ def update_graph(rule: str, agg: str):
     df.index = df.index + period_offsets[rule]
 
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.05
+        rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05
     )
 
     fig.add_trace(
         go.Bar(
             x=df.index,
-            y=df.eaten,
-            name="Eaten",
-            offsetgroup=0,
-            marker_color="green",
-        ),
-        row=1,
-        col=1,
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=df.index,
-            y=df.basal,
-            name="Basal",
-            offsetgroup=1,
-            marker_color="orange",
-        ),
-        row=1,
-        col=1,
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=df.index,
-            y=df.active,
-            name="Active",
-            offsetgroup=1,
+            y=df.eaten - df.active - df.basal,
+            name="Energy balance",
             marker_color="red",
         ),
         row=1,
@@ -119,9 +104,20 @@ def update_graph(rule: str, agg: str):
 
     fig.add_trace(
         go.Scatter(
+            x=weight_raw.index,
+            y=weight_raw,
+            name="Weight",
+            mode="markers",
+            marker=dict(symbol="x-thin", size=8, line=dict(width=1, color="lightgrey")),
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
             x=weight.index,
             y=weight,
-            name="Weight",
+            name="Weight smoothed",
             mode="lines",
         ),
         row=2,
@@ -130,12 +126,22 @@ def update_graph(rule: str, agg: str):
 
     fig.update_layout(
         height=650,
-        xaxis_title=None,
-        yaxis_title=None,
-        legend_title=None,
-        margin={"l": 40, "r": 0, "t": 20, "b": 0},
-        barmode="relative",
-        bargap=0.4,
+        yaxis_title="Energy balance (Cal)",
+        yaxis2=dict(title="Weight (lb)", range=[145, 175]),
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1y", step="year", stepmode="backward"),
+                    dict(count=3, label="3y", step="year", stepmode="backward"),
+                    dict(step="all", label="All"),
+                ]
+            ),
+        ),
+        xaxis2=dict(
+            rangeslider=dict(visible=True),
+        ),
+        showlegend=False,
+        margin={"l": 80, "r": 80, "t": 20, "b": 0},
     )
 
     return dcc.Graph(figure=fig)
