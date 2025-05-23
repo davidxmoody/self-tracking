@@ -17,20 +17,28 @@ periods = {
 
 layout = html.Div(
     [
-        dmc.SegmentedControl(
-            id="exercise-period",
-            value=periods["Monthly"],
-            data=cast(Any, [{"value": v, "label": k} for k, v in periods.items()]),
-            persistence_type="local",
-            persistence=True,
+        dmc.Group(
+            [
+                dmc.SegmentedControl(
+                    id="exercise-period",
+                    value=periods["Monthly"],
+                    data=cast(
+                        Any, [{"value": v, "label": k} for k, v in periods.items()]
+                    ),
+                    persistence_type="local",
+                    persistence=True,
+                ),
+            ],
+            gap="xl",
+            justify="center",
         ),
-        dcc.Graph(id="exercise-chart", figure={}),
+        html.Div(id="exercise-chart"),
     ]
 )
 
 
 @dash.callback(
-    Output("exercise-chart", "figure"),
+    Output("exercise-chart", "children"),
     [Input("exercise-period", "value")],
 )
 def update_graph(rule: str):
@@ -69,7 +77,10 @@ def update_graph(rule: str):
     fig.update_yaxes(title_text="Hours", row=4, col=1)
 
     fig.update_layout(
-        barmode="stack", showlegend=False, margin={"l": 20, "r": 20, "t": 60, "b": 0}
+        height=650,
+        barmode="stack",
+        showlegend=False,
+        margin={"l": 20, "r": 20, "t": 60, "b": 0},
     )
 
-    return fig
+    return dcc.Graph(figure=fig)
