@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import self_tracking.data as d
 import dash_mantine_components as dmc
+import pandas as pd
 
 dash.register_page(__name__)
 
@@ -42,12 +43,6 @@ layout = html.Div(
     [Input("exercise-period", "value")],
 )
 def update_graph(rule: str):
-    r = d.running().distance.resample(rule).sum()
-    co = d.cycling().calories.resample(rule).sum()
-    ci = d.cycling_indoor().calories.resample(rule).sum()
-    s = d.strength().duration.resample(rule).size()
-    c = d.climbing().duration.clip(0, 3).resample(rule).sum()
-
     fig = make_subplots(
         rows=4,
         cols=1,
@@ -55,25 +50,41 @@ def update_graph(rule: str):
         subplot_titles=["Running", "Cycling", "Strength training", "Climbing"],
     )
 
-    fig.add_trace(go.Bar(x=r.index, y=r.values, name="Running"), row=1, col=1)
+    running = d.running().distance.resample(rule).sum()
+    fig.add_trace(
+        go.Bar(x=running.index, y=running.values, name="Running"), row=1, col=1
+    )
     fig.update_yaxes(title_text="Miles", row=1, col=1)
 
+    cycling = d.cycling().calories.resample(rule).sum()
     fig.add_trace(
-        go.Bar(x=co.index, y=co.values, name="Outdoor"),
+        go.Bar(x=cycling.index, y=cycling.values, name="Outdoor"),
         row=2,
         col=1,
     )
+    cycling_indoor = d.cycling_indoor().calories.resample(rule).sum()
     fig.add_trace(
-        go.Bar(x=ci.index, y=ci.values, name="Indoor"),
+        go.Bar(x=cycling_indoor.index, y=cycling_indoor.values, name="Indoor"),
         row=2,
         col=1,
     )
     fig.update_yaxes(title_text="Calories", row=2, col=1, tickformat=",.0s")
 
-    fig.add_trace(go.Bar(x=s.index, y=s.values, name="Strength"), row=3, col=1)
+    strength = d.strength().duration.resample(rule).size()
+    fig.add_trace(
+        go.Bar(x=strength.index, y=strength.values, name="Strength"), row=3, col=1
+    )
     fig.update_yaxes(title_text="Sessions", row=3, col=1)
 
-    fig.add_trace(go.Bar(x=c.index, y=c.values, name="Climbing"), row=4, col=1)
+    climbing = d.climbing().reset_index()
+    climbing["duration"] = climbing.duration.clip(0, 3)
+    climbing = (
+        climbing.groupby([pd.Grouper(key="start", freq="MS"), "place"])
+        .duration.sum()
+        .reset_index()
+    )
+    for place, group in climbing.groupby("place", sort=False):
+        fig.add_trace(go.Bar(x=group.start, y=group.duration, name=place), row=4, col=1)
     fig.update_yaxes(title_text="Hours", row=4, col=1)
 
     fig.update_layout(
