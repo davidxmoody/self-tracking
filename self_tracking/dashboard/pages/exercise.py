@@ -50,19 +50,21 @@ def update_graph(rule: str):
         subplot_titles=["Running", "Cycling", "Strength training", "Climbing"],
     )
 
-    running = d.running().distance.resample(rule).sum()
+    running = d.running().distance.resample(rule, label="left", closed="left").sum()
     fig.add_trace(
         go.Bar(x=running.index, y=running.values, name="Running"), row=1, col=1
     )
     fig.update_yaxes(title_text="Miles", row=1, col=1)
 
-    cycling = d.cycling().calories.resample(rule).sum()
+    cycling = d.cycling().calories.resample(rule, label="left", closed="left").sum()
     fig.add_trace(
         go.Bar(x=cycling.index, y=cycling.values, name="Outdoor"),
         row=2,
         col=1,
     )
-    cycling_indoor = d.cycling_indoor().calories.resample(rule).sum()
+    cycling_indoor = (
+        d.cycling_indoor().calories.resample(rule, label="left", closed="left").sum()
+    )
     fig.add_trace(
         go.Bar(x=cycling_indoor.index, y=cycling_indoor.values, name="Indoor"),
         row=2,
@@ -70,16 +72,26 @@ def update_graph(rule: str):
     )
     fig.update_yaxes(title_text="Calories", row=2, col=1, tickformat=",.0s")
 
-    strength = d.strength().duration.resample(rule).size()
-    fig.add_trace(
-        go.Bar(x=strength.index, y=strength.values, name="Strength"), row=3, col=1
+    strength = d.strength().reset_index()
+    strength = (
+        strength.groupby(
+            [pd.Grouper(key="start", freq=rule, label="left", closed="left"), "program"]
+        )
+        .duration.size()
+        .reset_index()
     )
+    for program, group in strength.groupby("program", sort=False):
+        fig.add_trace(
+            go.Bar(x=group.start, y=group.duration, name=program), row=3, col=1
+        )
     fig.update_yaxes(title_text="Sessions", row=3, col=1)
 
     climbing = d.climbing().reset_index()
     climbing["duration"] = climbing.duration.clip(0, 3)
     climbing = (
-        climbing.groupby([pd.Grouper(key="start", freq="MS"), "place"])
+        climbing.groupby(
+            [pd.Grouper(key="start", freq=rule, label="left", closed="left"), "place"]
+        )
         .duration.sum()
         .reset_index()
     )

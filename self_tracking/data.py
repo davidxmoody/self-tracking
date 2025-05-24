@@ -120,7 +120,13 @@ def running():
 
 
 def strength():
-    return read_events("workouts/strength")
+    programs = list(strength_programs()[::-1].itertuples())
+    df = read_events("workouts/strength")
+    df["date"] = pd.to_datetime(cast(Any, df.index).date)
+    df["program"] = df.date.apply(
+        lambda x: next((p.name for p in programs if x >= p.start), None)
+    )
+    return df[["duration", "program"]]
 
 
 def strength_exercises():
