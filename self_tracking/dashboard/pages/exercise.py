@@ -50,27 +50,27 @@ def update_graph(rule: str):
         subplot_titles=["Running", "Cycling", "Strength training", "Climbing"],
     )
 
-    running = d.running().distance.resample(rule, label="left", closed="left").sum()
+    running = d.running().duration.resample(rule, label="left", closed="left").sum()
     fig.add_trace(
         go.Bar(x=running.index, y=running.values, name="Running"), row=1, col=1
     )
-    fig.update_yaxes(title_text="Miles", row=1, col=1)
+    fig.update_yaxes(title_text="Hours", row=1, col=1)
 
-    cycling = d.cycling().calories.resample(rule, label="left", closed="left").sum()
+    cycling = d.cycling().duration.resample(rule, label="left", closed="left").sum()
     fig.add_trace(
         go.Bar(x=cycling.index, y=cycling.values, name="Outdoor"),
         row=2,
         col=1,
     )
     cycling_indoor = (
-        d.cycling_indoor().calories.resample(rule, label="left", closed="left").sum()
+        d.cycling_indoor().duration.resample(rule, label="left", closed="left").sum()
     )
     fig.add_trace(
         go.Bar(x=cycling_indoor.index, y=cycling_indoor.values, name="Indoor"),
         row=2,
         col=1,
     )
-    fig.update_yaxes(title_text="Calories", row=2, col=1, tickformat=",.0s")
+    fig.update_yaxes(title_text="Hours", row=2, col=1, tickformat=",.0s")
 
     strength = d.strength().reset_index()
     strength = (
