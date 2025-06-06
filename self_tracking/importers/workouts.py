@@ -22,7 +22,7 @@ def main():
 
         df["duration"] = df["Duration(s)"] / (60 * 60)
 
-        df["distance"] = df["Distance(mi)"]
+        df["distance"] = df["Distance(mi)"] if "Distance(mi)" in df else 0
 
         df["calories"] = df["Active energy burned(Cal)"].round().astype(int)
 
