@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 import pandas as pd
 import self_tracking.data as d
+import plotly.express as px
 
 
 # %%
@@ -65,8 +66,6 @@ gaming.to_csv("gaming.tsv", sep="\t", index=False)
 
 
 # %%
-import plotly.express as px
-
 px.scatter(gaming, x="duration", y="activity")
 
 
@@ -75,4 +74,26 @@ gaming["activity_rate"] = gaming.activity / gaming.duration
 
 
 # %%
-gaming = gaming.loc[gaming.activity < 500]
+non_zero_gaming = gaming.loc[gaming.activity_rate > 0]
+
+fig = px.scatter(
+    non_zero_gaming,
+    x="start",
+    y="activity_rate",
+    color="activity_rate",
+    color_continuous_scale="Bluered",
+    color_continuous_midpoint=100,
+    range_color=[0, 400],
+)
+
+fig.update_layout(
+    title="Gaming session activity ratios",
+    xaxis_title="Date",
+    yaxis_title="Active calories per hour",
+    yaxis=dict(range=[0, 400]),
+    xaxis=dict(range=[non_zero_gaming["start"].min(), non_zero_gaming["start"].max()]),
+)
+
+fig.update_coloraxes(showscale=False)
+
+fig
