@@ -11,7 +11,7 @@ dash.register_page(__name__, title="ATracker")
 
 
 periods = {
-    "Total": "100Y",
+    "Total": "100YS",
     "Yearly": "YS",
     "Quarterly": "QS",
     "Monthly": "MS",
