@@ -24,7 +24,7 @@ def main():
 
         df["distance"] = df["Distance(mi)"] if "Distance(mi)" in df else 0
 
-        df["calories"] = df["Active energy burned(Cal)"].round().astype(int)
+        df["calories"] = df["Active energy burned(Cal)"].round().astype("Int64")
 
         for workout_type, group in df.groupby("Activity"):
             match workout_type:
@@ -51,7 +51,7 @@ def main():
                     count += workout_df.shape[0] - size_before
                     workout_df.to_csv(filepath, sep="\t", index=False)
 
-                case "Traditional Strength Training":
+                case "Traditional Strength Training (Indoor)":
                     filepath = export_dir / "strength.tsv"
 
                     workout_df = pd.read_table(filepath)
