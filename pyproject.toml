@@ -21,6 +21,7 @@ jupytext = "^1.17.1"
 notebook = "^7.4.1"
 statsmodels = "^0.14.4"
 scikit-learn = "^1.6.1"
+watchdog = "^6.0.0"
 
 
 [build-system]
