@@ -63,6 +63,10 @@ def weight():
 
     df = pd.read_csv(import_file, parse_dates=["Date"])
     df = df.rename(columns={"Date": "date", "Body mass(lb)": "weight"})
+
+    if df.shape[0] == 0:
+        return 0
+
     df["date"] = df.date.dt.date.astype(str)
     df = df.groupby("date").min()
     df["weight"] = df.weight.apply(lambda x: f"{x:.2f}")

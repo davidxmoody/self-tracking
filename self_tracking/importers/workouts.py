@@ -66,6 +66,9 @@ def main():
                     count += workout_df.shape[0] - size_before
                     workout_df.to_csv(filepath, sep="\t", index=False)
 
+                case "Walking":
+                    pass
+
                 case _:
                     raise Exception(f"Unknown workout type: {workout_type}")
 
