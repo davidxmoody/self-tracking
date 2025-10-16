@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from yaspin import yaspin
 
-fresh_path = downloads_dir / "strong.csv"
+fresh_path = downloads_dir / "strong_workouts.csv"
 export_path = diary_dir / "data/exports/strong.csv"
 
 workouts_path = diary_dir / "data/workouts/strength.tsv"
