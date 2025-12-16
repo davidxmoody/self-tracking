@@ -69,6 +69,10 @@ def main():
                 case "Walking":
                     pass
 
+                case "Cycling (Indoor)":
+                    # TODO
+                    pass
+
                 case "Running":
                     filepath = export_dir / "running.tsv"
 

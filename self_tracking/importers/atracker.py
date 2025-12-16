@@ -55,6 +55,9 @@ def get_events(since: str):
 
     df.loc[df.category == "side project", "category"] = "project"
     df.loc[df.category == "mindfulness", "category"] = "meditation"
+    df.loc[df.category == "strength", "category"] = "workout"
+    df.loc[df.category == "cycling", "category"] = "workout"
+    df.loc[df.category == "yoga", "category"] = "workout"
     df = df.loc[df.category != "cooking"]
 
     df = df.sort_values("start").reset_index(drop=True)
