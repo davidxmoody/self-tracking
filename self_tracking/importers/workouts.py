@@ -24,7 +24,11 @@ def main():
 
         df["distance"] = df["Distance(mi)"] if "Distance(mi)" in df else 0
 
-        df["calories"] = df["Active energy burned(Cal)"].round().astype("Int64")
+        df["calories"] = (
+            df["Active energy burned(Cal)"].round().astype("Int64")
+            if "Active energy burned(Cal)" in df
+            else 0
+        )
 
         for workout_type, group in df.groupby("Activity"):
             match workout_type:
