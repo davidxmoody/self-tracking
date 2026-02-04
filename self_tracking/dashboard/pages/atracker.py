@@ -129,8 +129,10 @@ def create_calendar_chart(limit: bool):
     color_map = d.atracker_color_map(use_names=True)
     category_names = d.atracker_categories().name
 
-    start = (datetime.now() - timedelta(weeks=4)).date().strftime("%Y-%m-%d")
-    events = d.atracker_events(start)
+    start_date = (datetime.now() - timedelta(weeks=4)).date()
+    # Fetch from one day earlier to capture events that span midnight into our range
+    fetch_start = (start_date - timedelta(days=1)).strftime("%Y-%m-%d")
+    events = d.atracker_events(fetch_start)
     events["category"] = events.category.map(category_names)
     events["end"] = (
         events.start + pd.to_timedelta(events.duration, unit="h")
@@ -141,6 +143,9 @@ def create_calendar_chart(limit: bool):
         split_events.extend(split_event(row))
     events = pd.DataFrame(split_events)
     events["date"] = pd.to_datetime(events.start.dt.date)
+
+    # Filter to only include events within the actual date range
+    events = events.loc[events.date >= pd.to_datetime(start_date)]
 
     events["y_start"] = (
         events.start - events.start.dt.normalize()
