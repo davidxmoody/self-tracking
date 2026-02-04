@@ -95,6 +95,7 @@ def trigger_refresh(n_clicks):
 
 @dash.callback(
     Output("atracker-agg", "disabled"),
+    Output("atracker-limit", "disabled"),
     Output("atracker-omit-last", "disabled"),
     Output("atracker-hide-sleep", "disabled"),
     Input("atracker-period", "value"),
@@ -102,7 +103,7 @@ def trigger_refresh(n_clicks):
 def update_controls(rule: str):
     is_daily = rule == "D"
     is_calendar = rule == "calendar"
-    return is_daily or is_calendar, is_calendar, is_calendar
+    return is_daily or is_calendar, is_calendar, is_calendar, is_calendar
 
 
 def format_duration(hours: float):
@@ -125,11 +126,17 @@ def split_event(row):
         return [row]
 
 
-def create_calendar_chart(limit: bool):
+def create_calendar_chart():
     color_map = d.atracker_color_map(use_names=True)
     category_names = d.atracker_categories().name
 
-    start_date = (datetime.now() - timedelta(weeks=4)).date()
+    # Show 3 full Mon-Sun weeks, with the current week being the third
+    today = datetime.now().date()
+    days_since_monday = today.weekday()  # Monday = 0
+    current_week_start = today - timedelta(days=days_since_monday)
+    start_date = current_week_start - timedelta(weeks=2)
+    end_date = current_week_start + timedelta(days=6)  # Sunday of current week
+
     # Fetch from one day earlier to capture events that span midnight into our range
     fetch_start = (start_date - timedelta(days=1)).strftime("%Y-%m-%d")
     events = d.atracker_events(fetch_start)
@@ -144,18 +151,17 @@ def create_calendar_chart(limit: bool):
     events = pd.DataFrame(split_events)
     events["date"] = pd.to_datetime(events.start.dt.date)
 
-    # Filter to only include events within the actual date range
-    events = events.loc[events.date >= pd.to_datetime(start_date)]
+    # Filter to only include events within the 3-week range
+    events = events.loc[
+        (events.date >= pd.to_datetime(start_date))
+        & (events.date <= pd.to_datetime(end_date))
+    ]
 
     events["y_start"] = (
         events.start - events.start.dt.normalize()
     ).dt.total_seconds() / 3600
     events["height"] = (events.end - events.start).dt.total_seconds() / 3600
     events["duration_str"] = events.duration.apply(format_duration_long)
-
-    if limit:
-        cutoff_date = events.date.max() - timedelta(days=99)
-        events = events.loc[events.date >= cutoff_date]
 
     fig = go.Figure()
 
@@ -193,11 +199,24 @@ def create_calendar_chart(limit: bool):
         xaxis=dict(
             autorange=False,
             range=[
-                events.date.min() - timedelta(hours=12),
-                events.date.max() + timedelta(hours=12),
+                pd.to_datetime(start_date) - timedelta(hours=12),
+                pd.to_datetime(end_date) + timedelta(hours=12),
             ],
+            tickformat="%a<br>%b %d",
+            dtick="D1",
         ),
     )
+
+    # Add vertical separators between weeks
+    week2_start = start_date + timedelta(weeks=1)
+    week3_start = start_date + timedelta(weeks=2)
+    for week_start in [week2_start, week3_start]:
+        fig.add_vline(
+            x=pd.to_datetime(week_start) - timedelta(hours=12),
+            line_width=1,
+            line_dash="dash",
+            line_color="gray",
+        )
 
     return fig
 
@@ -217,7 +236,7 @@ def update_graph(
     rule: str, agg: str, limit: bool, omit_last: bool, hide_sleep: bool, _n_clicks: int
 ):
     if rule == "calendar":
-        fig = create_calendar_chart(limit)
+        fig = create_calendar_chart()
         return dcc.Graph(figure=fig)
 
     df = get_df()
