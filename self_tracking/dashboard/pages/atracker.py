@@ -103,7 +103,12 @@ def trigger_refresh(n_clicks):
 def update_controls(rule: str):
     is_daily = rule == "D"
     is_calendar = rule == "calendar"
-    return is_daily or is_calendar, is_calendar, is_calendar, is_calendar
+    is_total = rule == "100YS"
+    agg_disabled = is_daily or is_calendar
+    limit_disabled = is_calendar or is_total
+    omit_last_disabled = is_calendar
+    hide_sleep_disabled = is_calendar
+    return agg_disabled, limit_disabled, omit_last_disabled, hide_sleep_disabled
 
 
 def format_duration(hours: float):
@@ -246,6 +251,41 @@ def update_graph(
 
     if omit_last:
         df = df.iloc[:-1]
+
+    if rule == "100YS":
+        if agg == "mean":
+            totals = df.mean()
+            suffix = "/day"
+        else:
+            totals = df.sum()
+            suffix = ""
+        totals = totals[totals > 0].sort_values(ascending=False)
+
+        def format_hours_minutes(hours: float) -> str:
+            h, m = divmod(round(hours * 60), 60)
+            return f"{h}:{m:02d}"
+
+        formatted = [format_hours_minutes(v) + suffix for v in totals.values]
+        color_map = d.atracker_color_map(use_names=True)
+
+        fig = px.pie(
+            values=totals.values,
+            names=totals.index,
+            color=totals.index,
+            color_discrete_map=color_map,
+        )
+        fig.update_traces(
+            textposition="inside",
+            customdata=formatted,
+            texttemplate="%{label}<br>%{percent:.1%}<br>%{customdata}",
+            hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>",
+        )
+        fig.update_layout(
+            height=500,
+            margin={"l": 40, "r": 0, "t": 20, "b": 0},
+            showlegend=False,
+        )
+        return dcc.Graph(figure=fig)
 
     df = df.resample(rule, closed="left", label="left").agg(agg).reset_index()
 
