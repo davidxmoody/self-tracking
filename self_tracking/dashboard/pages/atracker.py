@@ -1,6 +1,9 @@
+from datetime import datetime, timedelta
+
 import dash
 from dash import Input, Output, clientside_callback, dcc, html
 import plotly.express as px
+import plotly.graph_objects as go
 from self_tracking.dashboard.components.controls import Select, Checkbox
 import self_tracking.data as d
 import dash_mantine_components as dmc
@@ -17,6 +20,7 @@ periods = {
     "Monthly": "MS",
     "Weekly": "W-MON",
     "Daily": "D",
+    "Calendar": "calendar",
 }
 
 aggregations = {
@@ -91,15 +95,106 @@ def trigger_refresh(n_clicks):
 
 @dash.callback(
     Output("atracker-agg", "disabled"),
+    Output("atracker-omit-last", "disabled"),
+    Output("atracker-hide-sleep", "disabled"),
     Input("atracker-period", "value"),
 )
 def update_controls(rule: str):
-    return rule == "D"
+    is_daily = rule == "D"
+    is_calendar = rule == "calendar"
+    return is_daily or is_calendar, is_calendar, is_calendar
 
 
 def format_duration(hours: float):
     h, m = divmod(round(hours * 60), 60)
     return f"{h:02d}:{m:02d}"
+
+
+def format_duration_long(hours: float):
+    mins = int(round(hours * 60))
+    h, m = divmod(mins, 60)
+    return f"{h}h {m}m" if h else f"{m}m"
+
+
+def split_event(row):
+    if row.start.date() != row.end.date():
+        first_event = row._replace(end=row.start.replace(hour=23, minute=59, second=59))
+        second_event = row._replace(start=row.end.replace(hour=0, minute=0, second=0))
+        return [first_event, second_event]
+    else:
+        return [row]
+
+
+def create_calendar_chart(limit: bool):
+    color_map = d.atracker_color_map(use_names=True)
+    category_names = d.atracker_categories().name
+
+    start = (datetime.now() - timedelta(weeks=4)).date().strftime("%Y-%m-%d")
+    events = d.atracker_events(start)
+    events["category"] = events.category.map(category_names)
+    events["end"] = (
+        events.start + pd.to_timedelta(events.duration, unit="h")
+    ).dt.round("1s")
+
+    split_events = []
+    for row in events.itertuples(index=False):
+        split_events.extend(split_event(row))
+    events = pd.DataFrame(split_events)
+    events["date"] = pd.to_datetime(events.start.dt.date)
+
+    events["y_start"] = (
+        events.start - events.start.dt.normalize()
+    ).dt.total_seconds() / 3600
+    events["height"] = (events.end - events.start).dt.total_seconds() / 3600
+    events["duration_str"] = events.duration.apply(format_duration_long)
+
+    if limit:
+        cutoff_date = events.date.max() - timedelta(days=99)
+        events = events.loc[events.date >= cutoff_date]
+
+    fig = go.Figure()
+
+    for category in reversed(color_map):
+        cevents = events.loc[events.category == category]
+
+        fig.add_trace(
+            go.Bar(
+                x=cevents.date,
+                y=cevents.height,
+                base=cevents.y_start,
+                orientation="v",
+                name=category,
+                marker_color=color_map[category],
+                customdata=cevents.duration_str,
+                hovertemplate=f"{category}: %{{customdata}}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        barmode="stack",
+        height=500,
+        legend={"traceorder": "reversed", "x": 1},
+        xaxis_title=None,
+        legend_title=None,
+        margin={"l": 40, "r": 0, "t": 20, "b": 0},
+        yaxis=dict(
+            title=None,
+            autorange=False,
+            range=[24, 0],
+            tickmode="array",
+            tickvals=list(range(0, 25, 2)),
+            ticktext=[f"{str(h % 24).rjust(2, '0')}:00" for h in range(0, 25, 2)],
+        ),
+        xaxis=dict(
+            autorange=False,
+            range=[
+                events.date.min() - timedelta(hours=12),
+                events.date.max() + timedelta(hours=12),
+            ],
+        ),
+    )
+
+    return fig
 
 
 @dash.callback(
@@ -114,8 +209,12 @@ def format_duration(hours: float):
     ],
 )
 def update_graph(
-    rule: str, agg: str, limit: bool, omit_last: bool, hide_sleep: bool, n_clicks: int
+    rule: str, agg: str, limit: bool, omit_last: bool, hide_sleep: bool, _n_clicks: int
 ):
+    if rule == "calendar":
+        fig = create_calendar_chart(limit)
+        return dcc.Graph(figure=fig)
+
     df = get_df()
 
     if hide_sleep:
