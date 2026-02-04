@@ -37,7 +37,6 @@ layout = html.Div(
                 Select("atracker-agg", aggregations),
                 Checkbox("atracker-limit", "Limit bars"),
                 Checkbox("atracker-omit-last", "Omit last day"),
-                Checkbox("atracker-hide-sleep", "Hide Sleep"),
                 dmc.Button(
                     id="atracker-refresh-button",
                     children="Refresh",
@@ -97,7 +96,6 @@ def trigger_refresh(n_clicks):
     Output("atracker-agg", "disabled"),
     Output("atracker-limit", "disabled"),
     Output("atracker-omit-last", "disabled"),
-    Output("atracker-hide-sleep", "disabled"),
     Input("atracker-period", "value"),
 )
 def update_controls(rule: str):
@@ -107,8 +105,7 @@ def update_controls(rule: str):
     agg_disabled = is_daily or is_calendar
     limit_disabled = is_calendar or is_total
     omit_last_disabled = is_calendar
-    hide_sleep_disabled = is_calendar
-    return agg_disabled, limit_disabled, omit_last_disabled, hide_sleep_disabled
+    return agg_disabled, limit_disabled, omit_last_disabled
 
 
 def format_duration(hours: float):
@@ -173,18 +170,29 @@ def create_calendar_chart():
     for category in reversed(color_map):
         cevents = events.loc[events.category == category]
 
-        fig.add_trace(
-            go.Bar(
-                x=cevents.date,
-                y=cevents.height,
-                base=cevents.y_start,
-                orientation="v",
-                name=category,
-                marker_color=color_map[category],
-                customdata=cevents.duration_str,
-                hovertemplate=f"{category}: %{{customdata}}<extra></extra>",
+        if len(cevents) > 0:
+            fig.add_trace(
+                go.Bar(
+                    x=cevents.date,
+                    y=cevents.height,
+                    base=cevents.y_start,
+                    orientation="v",
+                    name=category,
+                    marker_color=color_map[category],
+                    customdata=cevents.duration_str,
+                    hovertemplate=f"{category}: %{{customdata}}<extra></extra>",
+                )
             )
-        )
+        else:
+            # Add invisible trace to ensure category appears in legend
+            fig.add_trace(
+                go.Bar(
+                    x=[None],
+                    y=[None],
+                    name=category,
+                    marker_color=color_map[category],
+                )
+            )
 
     fig.update_layout(
         barmode="stack",
@@ -233,21 +241,15 @@ def create_calendar_chart():
         Input("atracker-agg", "value"),
         Input("atracker-limit", "checked"),
         Input("atracker-omit-last", "checked"),
-        Input("atracker-hide-sleep", "checked"),
         Input("atracker-refresh-counter", "data"),
     ],
 )
-def update_graph(
-    rule: str, agg: str, limit: bool, omit_last: bool, hide_sleep: bool, _n_clicks: int
-):
+def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, _n_clicks: int):
     if rule == "calendar":
         fig = create_calendar_chart()
         return dcc.Graph(figure=fig)
 
     df = get_df()
-
-    if hide_sleep:
-        df = df.drop(["Sleep"], axis=1)
 
     if omit_last:
         df = df.iloc[:-1]
@@ -259,6 +261,7 @@ def update_graph(
         else:
             totals = df.sum()
             suffix = ""
+        totals = totals.drop("Sleep", errors="ignore")
         totals = totals[totals > 0].sort_values(ascending=False)
 
         def format_hours_minutes(hours: float) -> str:
@@ -309,6 +312,10 @@ def update_graph(
     )
     fig.update_traces(
         hovertemplate="<b>%{customdata[1]}</b> %{customdata[0]}<extra></extra>"
+    )
+    # Hide Sleep by default but allow toggling via legend
+    fig.for_each_trace(
+        lambda t: t.update(visible="legendonly"), selector={"name": "Sleep"}
     )
     fig.update_layout(
         height=500,
