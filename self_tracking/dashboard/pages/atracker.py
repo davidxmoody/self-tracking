@@ -327,4 +327,7 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, _n_clicks: i
         hovermode="x unified",
     )
 
+    if rule == "D":
+        fig.update_xaxes(hoverformat="%a %b %d, %Y")
+
     return dcc.Graph(figure=fig)
