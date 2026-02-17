@@ -179,6 +179,7 @@ def create_calendar_chart():
                     orientation="v",
                     name=category,
                     marker_color=color_map[category],
+                    width=20 * 3600 * 1000,  # 20 hours in ms
                     customdata=cevents.duration_str,
                     hovertemplate=f"{category}: %{{customdata}}<extra></extra>",
                 )
