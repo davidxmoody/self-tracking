@@ -1,6 +1,7 @@
 import dash
 from dash import Input, Output, dcc, html
 import plotly.express as px
+import plotly.graph_objects as go
 from self_tracking.dashboard.components.controls import Select, Checkbox
 import self_tracking.data as d
 import dash_mantine_components as dmc
@@ -94,27 +95,57 @@ def update_graph(rule: str, limit: bool):
     if limit and rule in ("W-MON", "D"):
         resampled = resampled.iloc[-100:]
 
-    long = resampled.melt(id_vars="date", var_name="repo", value_name="commits")
-    long = long.loc[long.commits > 0]
+    # Sort repos by total commits (most active at bottom)
+    repo_totals = resampled.drop(columns="date").sum().sort_values()
+    active_repos = repo_totals[repo_totals > 0].index.tolist()
 
-    fig = px.bar(
-        long,
-        x="date",
-        y="commits",
-        color="repo",
-        color_discrete_map=color_map,
-        custom_data=["repo", "commits"],
-    )
-    fig.update_traces(
-        hovertemplate="<b>%{customdata[1]}</b> %{customdata[0]}<extra></extra>"
-    )
+    # Normalize each repo's values to [0, 1] for consistent ridge heights
+    max_val = resampled[active_repos].max().max()
+    if max_val == 0:
+        max_val = 1
+
+    fig = go.Figure()
+
+    for i, repo in enumerate(active_repos):
+        y_values = resampled[repo] / max_val
+        # Baseline trace (invisible, defines the bottom of the fill)
+        fig.add_trace(
+            go.Scatter(
+                x=resampled["date"],
+                y=[i] * len(resampled),
+                mode="lines",
+                line={"width": 0},
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+        # Ridge trace (fills down to baseline)
+        fig.add_trace(
+            go.Scatter(
+                x=resampled["date"],
+                y=y_values + i,
+                fill="tonexty",
+                mode="lines",
+                line={"color": color_map[repo], "width": 0.5},
+                fillcolor=color_map[repo],
+                name=repo,
+                customdata=resampled[repo],
+                hovertemplate="<b>%{customdata}</b> commits<extra>%{fullData.name}</extra>",
+            )
+        )
+
     fig.update_layout(
-        height=500,
-        legend={"traceorder": "reversed", "x": 1},
+        height=max(400, len(active_repos) * 60 + 80),
+        legend={"x": 1},
         xaxis_title=None,
-        yaxis_title=None,
+        yaxis=dict(
+            title=None,
+            tickmode="array",
+            tickvals=list(range(len(active_repos))),
+            ticktext=active_repos,
+        ),
         legend_title=None,
-        margin={"l": 40, "r": 0, "t": 20, "b": 0},
+        margin={"l": 120, "r": 0, "t": 20, "b": 0},
         hovermode="x unified",
     )
 
