@@ -1,7 +1,8 @@
+import subprocess
 from datetime import datetime, timedelta
 from typing import Any, cast
 import pandas as pd
-from self_tracking.dirs import diary_dir
+from self_tracking.dirs import diary_dir, projects_dir
 
 
 # %%
@@ -192,3 +193,34 @@ def holidays():
 
 def streaks():
     return pd.read_table(filepath("streaks"), parse_dates=["date"])
+
+
+# %%
+def git_commits():
+    my_name = subprocess.run(
+        ["git", "config", "user.name"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+    rows = []
+    for repo in sorted(projects_dir.glob("*/.git")):
+        result = subprocess.run(
+            [
+                "git",
+                f"--git-dir={repo}",
+                "log",
+                "--pretty=tformat:%aI%x00%s",
+                f"--author={my_name}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        for line in result.stdout.splitlines():
+            dt, message = line.split("\x00", 1)
+            rows.append({"datetime": dt, "repo": repo.parent.name, "message": message})
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=["datetime", "repo", "message"])
+
+    df["datetime"] = pd.to_datetime(df.datetime, utc=True).dt.tz_convert("Europe/London")
+    return df.sort_values("datetime").reset_index(drop=True)

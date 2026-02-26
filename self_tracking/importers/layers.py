@@ -1,5 +1,4 @@
-from self_tracking.dirs import diary_dir, projects_dir
-import subprocess
+from self_tracking.dirs import diary_dir
 from typing import Any
 
 import pandas as pd
@@ -89,36 +88,17 @@ def misc_layers():
 # %%
 def git_layers():
     count = 0
-    repos = projects_dir.glob("*/.git")
-    my_name = subprocess.run(
-        ["git", "config", "user.name"], check=True, capture_output=True, text=True
-    ).stdout.strip()
+    commits = d.git_commits()
 
-    for repo in repos:
-        commit_dates = subprocess.run(
-            [
-                "git",
-                f"--git-dir={repo}",
-                "log",
-                "--date=short",
-                "--pretty=tformat:%cd",
-                f"--author={my_name}",
-            ],
-            capture_output=True,
-            text=True,
-        ).stdout.splitlines()
-
-        if commit_dates:
-            layer = (
-                pd.DataFrame({"date": pd.to_datetime(commit_dates)})
-                .groupby("date")
-                .size()
-                .resample(**weekly)
-                .sum()
-                .astype("Int64")
-            )
-
-            count += write_layer(layer, "git", repo.parent.name)
+    for repo, group in commits.groupby("repo"):
+        layer = (
+            group.assign(date=group.datetime.dt.date)
+            .groupby("date")
+            .size()
+        )
+        layer.index = pd.to_datetime(layer.index)
+        layer = layer.resample(**weekly).sum().astype("Int64")
+        count += write_layer(layer, "git", str(repo))
 
     return count
 
