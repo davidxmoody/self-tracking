@@ -57,15 +57,24 @@ def update_graph(rule: str, limit: bool):
 
     df = df.set_index("datetime")
 
-    # Assign a unique color to each repo
-    repos = sorted(df["repo"].unique())
-    palette = px.colors.qualitative.Alphabet
-    color_map = {repo: palette[i % len(palette)] for i, repo in enumerate(repos)}
-
     # Pivot: one column per repo with count 1 per commit
     pivot = df.assign(count=1).pivot_table(
         index="datetime", columns="repo", values="count", aggfunc="sum", fill_value=0
     )
+
+    # Group repos with <50 total commits into "Other"
+    repo_commit_totals = pivot.sum()
+    minor_repos = repo_commit_totals[repo_commit_totals < 50].index.tolist()
+    if minor_repos:
+        pivot["Other"] = pivot[minor_repos].sum(axis=1)
+        pivot = pivot.drop(columns=minor_repos)
+
+    # Assign a unique color to each series
+    series = sorted(c for c in pivot.columns if c != "Other")
+    palette = px.colors.qualitative.Alphabet
+    color_map = {s: palette[i % len(palette)] for i, s in enumerate(series)}
+    if "Other" in pivot.columns:
+        color_map["Other"] = "#999999"
 
     if rule == "100YS":
         totals = pivot.sum()
@@ -95,9 +104,12 @@ def update_graph(rule: str, limit: bool):
     if limit and rule in ("W-MON", "D"):
         resampled = resampled.iloc[-100:]
 
-    # Sort repos by total commits (most active at bottom)
+    # Sort repos by total commits (most active at bottom), with "Other" first (bottom)
     repo_totals = resampled.drop(columns="date").sum().sort_values()
     active_repos = repo_totals[repo_totals > 0].index.tolist()
+    if "Other" in active_repos:
+        active_repos.remove("Other")
+        active_repos.insert(0, "Other")
 
     # Normalize each repo's values to [0, 1] for consistent ridge heights
     max_val = resampled[active_repos].max().max()
