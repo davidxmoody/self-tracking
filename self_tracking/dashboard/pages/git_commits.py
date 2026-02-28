@@ -1,55 +1,20 @@
 import dash
-from dash import Input, Output, dcc, html
+from dash import dcc, html
 import plotly.express as px
 import plotly.graph_objects as go
-from self_tracking.dashboard.components.controls import Select, Checkbox
 import self_tracking.data as d
-import dash_mantine_components as dmc
 
 dash.register_page(__name__, title="Git Commits")
 
 
-periods = {
-    "Total": "100YS",
-    "Yearly": "YS",
-    "Quarterly": "QS",
-    "Monthly": "MS",
-    "Weekly": "W-MON",
-    "Daily": "D",
-}
-
-
-layout = html.Div(
-    [
-        dmc.Group(
-            [
-                Select("git-commits-period", periods),
-                Checkbox("git-commits-limit", "Limit bars"),
-            ],
-            gap="xl",
-            justify="center",
-        ),
-        html.Div(id="git-commits-chart"),
-    ]
-)
+layout = html.Div(id="git-commits-chart")
 
 
 @dash.callback(
-    Output("git-commits-limit", "disabled"),
-    Input("git-commits-period", "value"),
+    dash.Output("git-commits-chart", "children"),
+    dash.Input("git-commits-chart", "id"),
 )
-def update_controls(rule: str):
-    return rule not in ("W-MON", "D")
-
-
-@dash.callback(
-    Output("git-commits-chart", "children"),
-    [
-        Input("git-commits-period", "value"),
-        Input("git-commits-limit", "checked"),
-    ],
-)
-def update_graph(rule: str, limit: bool):
+def update_graph(_):
     df = d.git_commits()
 
     if df.empty:
@@ -62,54 +27,29 @@ def update_graph(rule: str, limit: bool):
         index="datetime", columns="repo", values="count", aggfunc="sum", fill_value=0
     )
 
-    # Group repos with <50 total commits into "Other"
+    # Group repos with <50 total commits into "other"
     repo_commit_totals = pivot.sum()
     minor_repos = repo_commit_totals[repo_commit_totals < 50].index.tolist()
     if minor_repos:
-        pivot["Other"] = pivot[minor_repos].sum(axis=1)
+        pivot["other"] = pivot[minor_repos].sum(axis=1)
         pivot = pivot.drop(columns=minor_repos)
 
     # Assign a unique color to each series
-    series = sorted(c for c in pivot.columns if c != "Other")
+    series = sorted(c for c in pivot.columns if c != "other")
     palette = px.colors.qualitative.Alphabet
     color_map = {s: palette[i % len(palette)] for i, s in enumerate(series)}
-    if "Other" in pivot.columns:
-        color_map["Other"] = "#999999"
+    if "other" in pivot.columns:
+        color_map["other"] = "#999999"
 
-    if rule == "100YS":
-        totals = pivot.sum()
-        totals = totals[totals > 0].sort_values(ascending=False)
-
-        fig = px.pie(
-            values=totals.values,
-            names=totals.index,
-            color=totals.index,
-            color_discrete_map=color_map,
-        )
-        fig.update_traces(
-            textposition="inside",
-            texttemplate="%{label}<br>%{percent:.1%}<br>%{value}",
-            hovertemplate="<b>%{label}</b><br>%{value} commits<extra></extra>",
-        )
-        fig.update_layout(
-            height=500,
-            margin={"l": 40, "r": 0, "t": 20, "b": 0},
-            showlegend=False,
-        )
-        return dcc.Graph(figure=fig)
-
-    resampled = pivot.resample(rule, closed="left", label="left").sum().reset_index()
+    resampled = pivot.resample("MS", closed="left", label="left").sum().reset_index()
     resampled = resampled.rename(columns={"datetime": "date"})
 
-    if limit and rule in ("W-MON", "D"):
-        resampled = resampled.iloc[-100:]
-
-    # Sort repos by total commits (most active at bottom), with "Other" first (bottom)
+    # Sort repos by total commits (most active at bottom), with "other" first (bottom)
     repo_totals = resampled.drop(columns="date").sum().sort_values()
     active_repos = repo_totals[repo_totals > 0].index.tolist()
-    if "Other" in active_repos:
-        active_repos.remove("Other")
-        active_repos.insert(0, "Other")
+    if "other" in active_repos:
+        active_repos.remove("other")
+        active_repos.insert(0, "other")
 
     # Normalize each repo's values to [0, 1] for consistent ridge heights
     max_val = resampled[active_repos].max().max()
@@ -148,7 +88,7 @@ def update_graph(rule: str, limit: bool):
 
     fig.update_layout(
         height=max(400, len(active_repos) * 60 + 80),
-        legend={"x": 1},
+        showlegend=False,
         xaxis_title=None,
         yaxis=dict(
             title=None,
@@ -156,12 +96,8 @@ def update_graph(rule: str, limit: bool):
             tickvals=list(range(len(active_repos))),
             ticktext=active_repos,
         ),
-        legend_title=None,
         margin={"l": 120, "r": 0, "t": 20, "b": 0},
         hovermode="x unified",
     )
-
-    if rule == "D":
-        fig.update_xaxes(hoverformat="%a %b %d, %Y")
 
     return dcc.Graph(figure=fig)
