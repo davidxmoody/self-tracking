@@ -6,7 +6,6 @@ from zipfile import ZipFile
 import pandas as pd
 from yaspin import yaspin
 
-
 # %%
 fresh_path = downloads_dir / "export.zip"
 export_path = cache_dir / "apple-health-export.zip"
@@ -158,11 +157,6 @@ def extract_running(root: ET.Element):
 
 
 # %%
-def parse_indoor(node):
-    indoor_node = node.find("*[@key='HKIndoorWorkout']")
-    return indoor_node.attrib["value"] == "1"
-
-
 def extract_cycling(root: ET.Element):
     cycling_mixed = pd.DataFrame(
         {
@@ -170,20 +164,17 @@ def extract_cycling(root: ET.Element):
             "duration": parse_duration(node),
             "distance": parse_distance(node, "Cycling"),
             "calories": parse_calories(node),
-            "indoor": parse_indoor(node),
         }
         for node in root.iterfind(
             "./Workout[@workoutActivityType='HKWorkoutActivityTypeCycling']"
         )
     )
 
-    cycling_indoor = cycling_mixed[cycling_mixed["indoor"] == True].drop(
-        ["distance", "indoor"], axis=1
-    )
+    is_indoor = cycling_mixed["distance"].isna() | (cycling_mixed["distance"] == 0)
 
-    cycling_outdoor = cycling_mixed[cycling_mixed["indoor"] == False].drop(
-        ["indoor"], axis=1
-    )
+    cycling_indoor = cycling_mixed[is_indoor].drop(["distance"], axis=1)
+
+    cycling_outdoor = cycling_mixed[~is_indoor]
 
     c1 = write_tsv(cycling_indoor, "workouts/cycling-indoor", index=False)
     c2 = write_tsv(cycling_outdoor, "workouts/cycling", index=False)
