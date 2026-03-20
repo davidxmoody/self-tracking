@@ -196,6 +196,25 @@ def streaks():
 
 
 # %%
+def money():
+    money_dir = diary_dir / "data/money"
+    series = {}
+    for f in sorted(money_dir.glob("*.tsv")):
+        df = pd.read_table(f, parse_dates=["date"]).set_index("date")
+        series[f.stem] = df["balance"]
+
+    if not series:
+        return pd.DataFrame()
+
+    combined = pd.DataFrame(series)
+    full_range = pd.date_range(
+        start=combined.index.min(), end=combined.index.max(), freq="D"
+    ).rename("date")
+    combined = combined.reindex(full_range).ffill()
+
+    return combined
+
+
 def git_commits():
     my_name = subprocess.run(
         ["git", "config", "user.name"], check=True, capture_output=True, text=True
