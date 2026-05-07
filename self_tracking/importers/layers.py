@@ -1,27 +1,21 @@
 from self_tracking.dirs import diary_dir
-from typing import Any
 
 import pandas as pd
-import numpy as np
 from yaspin import yaspin
 
 import self_tracking.data as d
 
 
 # %%
-weekly: Any = {"rule": "W-Mon", "closed": "left", "label": "left"}
-
-
-def write_layer(series, category: str, name: str) -> int:
+def write_layer(
+    series, category: str, name: str, float_format: str | None = None
+) -> int:
     file = diary_dir / f"layers/{category}/{name}.tsv"
     file.parent.mkdir(parents=True, exist_ok=True)
     old_contents = file.read_text() if file.exists() else None
 
     new_contents = (
-        series.where(lambda x: x > 0)
-        .dropna()
-        .rename("value")
-        .to_csv(sep="\t", float_format="%.4f")
+        series[series > 0].rename("value").to_csv(sep="\t", float_format=float_format)
     )
 
     has_changed = old_contents != new_contents
@@ -32,57 +26,51 @@ def write_layer(series, category: str, name: str) -> int:
     return int(has_changed)
 
 
-def write_layers(table, category: str) -> int:
-    return sum(write_layer(table[name], category, name) for name in table.columns)
+def write_layers(table, category: str, float_format: str | None = None) -> int:
+    return sum(
+        write_layer(table[name], category, name, float_format) for name in table.columns
+    )
 
 
 # %%
 def streaks_layers():
     streaks = d.streaks()
-    streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0.7, "missed": -3})
+    streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0.3, "missed": 0})
 
-    streaks_pivot = (
-        streaks.pivot_table(values="score", index="date", columns="name")
-        .resample(**weekly)
-        .mean()
-        .clip(0, 1)
-        .replace(0, np.nan)
-    )
+    streaks_pivot = streaks.pivot_table(values="score", index="date", columns="name")
 
-    return write_layers(streaks_pivot, "streaks")
+    return write_layers(streaks_pivot, "streaks", float_format="%.1f")
 
 
 # %%
 def atracker_layers():
-    atracker = d.atracker(start_date=None).resample(**weekly).sum()
-    return write_layers(atracker, "atracker")
+    atracker = d.atracker(start_date=None)
+    return write_layers(atracker, "atracker", float_format="%.4f")
 
 
 # %%
 def workout_layers():
     workouts = d.workouts().reset_index()
-    workouts["date"] = (
-        workouts.start.dt.tz_convert(None).dt.to_period("W").dt.start_time
-    )
+    workouts["date"] = workouts.start.dt.tz_convert(None).dt.normalize()
 
     workouts_pivot = pd.pivot_table(
         workouts, index="date", columns="type", values="duration", aggfunc="sum"
     )
 
-    return write_layers(workouts_pivot, "workouts")
+    return write_layers(workouts_pivot, "workouts", float_format="%.4f")
 
 
 # %%
 def misc_layers():
-    layer = (
-        d.holidays()
-        .rename(columns={"end": "date"})
-        .set_index("date")
-        .duration.dt.days.resample(**weekly)
-        .sum()
-        .astype("Int64")
+    holidays = d.holidays()
+    days = pd.concat(
+        [
+            pd.Series(1, index=pd.date_range(start, end))
+            for start, end in zip(holidays.start, holidays.end)
+        ]
     )
-    return write_layer(layer, "misc", "holidays")
+    days.index.name = "date"
+    return write_layer(days, "misc", "holidays")
 
 
 # %%
@@ -92,12 +80,10 @@ def git_layers():
 
     for repo, group in commits.groupby("repo"):
         layer = (
-            group.assign(date=group.datetime.dt.date)
+            group.assign(date=pd.to_datetime(group.datetime.dt.date))
             .groupby("date")
             .size()
         )
-        layer.index = pd.to_datetime(layer.index)
-        layer = layer.resample(**weekly).sum().astype("Int64")
         count += write_layer(layer, "git", str(repo))
 
     return count
