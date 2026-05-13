@@ -1,3 +1,5 @@
+import json
+
 from self_tracking.dirs import diary_dir
 
 import pandas as pd
@@ -8,15 +10,35 @@ import self_tracking.data as d
 
 # %%
 def write_layer(
-    series, category: str, name: str, float_format: str | None = None
+    series,
+    group: str,
+    name: str,
+    *,
+    title: str,
+    group_title: str,
+    color: str,
+    order: int,
+    ndigits: int,
 ) -> int:
-    file = diary_dir / f"layers/{category}/{name}.tsv"
+    file = diary_dir / "layers" / group / f"{name}.json"
     file.parent.mkdir(parents=True, exist_ok=True)
     old_contents = file.read_text() if file.exists() else None
 
-    new_contents = (
-        series[series > 0].rename("value").to_csv(sep="\t", float_format=float_format)
-    )
+    series = series[series > 0]
+    data = {
+        k.strftime("%Y-%m-%d"): int(v) if ndigits == 0 else round(float(v), ndigits)
+        for k, v in series.items()
+    }
+
+    payload = {
+        "id": f"{group}/{name}",
+        "title": title,
+        "groupTitle": group_title,
+        "color": color,
+        "order": order,
+        "data": data,
+    }
+    new_contents = json.dumps(payload, indent=2) + "\n"
 
     has_changed = old_contents != new_contents
 
@@ -26,26 +48,48 @@ def write_layer(
     return int(has_changed)
 
 
-def write_layers(table, category: str, float_format: str | None = None) -> int:
-    return sum(
-        write_layer(table[name], category, name, float_format) for name in table.columns
-    )
-
-
 # %%
 def streaks_layers():
     streaks = d.streaks()
     streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0.3, "missed": 0})
 
-    streaks_pivot = streaks.pivot_table(values="score", index="date", columns="name")
+    pivot = streaks.pivot_table(values="score", index="date", columns="name")
 
-    return write_layers(streaks_pivot, "streaks", float_format="%.1f")
+    count = 0
+    for order, name in enumerate(pivot.columns):
+        count += write_layer(
+            pivot[name],
+            "streaks",
+            str(name),
+            title=str(name).title(),
+            group_title="Streaks",
+            color="#FF704D",
+            order=order,
+            ndigits=1,
+        )
+    return count
 
 
 # %%
 def atracker_layers():
+    categories = d.atracker_categories()
     atracker = d.atracker(start_date=None)
-    return write_layers(atracker, "atracker", float_format="%.4f")
+
+    count = 0
+    for order, cat in enumerate(categories.index):
+        if cat not in atracker.columns:
+            continue
+        count += write_layer(
+            atracker[cat],
+            "atracker",
+            str(cat),
+            title=str(categories.loc[cat, "name"]),
+            group_title="ATracker",
+            color=str(categories.loc[cat, "color"]),
+            order=order,
+            ndigits=4,
+        )
+    return count
 
 
 # %%
@@ -53,11 +97,23 @@ def workout_layers():
     workouts = d.workouts().reset_index()
     workouts["date"] = workouts.start.dt.tz_convert(None).dt.normalize()
 
-    workouts_pivot = pd.pivot_table(
+    pivot = pd.pivot_table(
         workouts, index="date", columns="type", values="duration", aggfunc="sum"
     )
 
-    return write_layers(workouts_pivot, "workouts", float_format="%.4f")
+    count = 0
+    for order, name in enumerate(pivot.columns):
+        count += write_layer(
+            pivot[name],
+            "workouts",
+            str(name),
+            title=str(name),
+            group_title="Workouts",
+            color="#3AA8BC",
+            order=order,
+            ndigits=4,
+        )
+    return count
 
 
 # %%
@@ -70,21 +126,41 @@ def misc_layers():
         ]
     )
     days.index.name = "date"
-    return write_layer(days, "misc", "holidays")
+    return write_layer(
+        days,
+        "misc",
+        "holidays",
+        title="Holidays",
+        group_title="Misc",
+        color="#132748",
+        order=0,
+        ndigits=0,
+    )
 
 
 # %%
 def git_layers():
-    count = 0
     commits = d.git_commits()
+    repo_counts = commits.groupby("repo").size().sort_values(ascending=False)
+    order_map = {repo: i for i, repo in enumerate(repo_counts.index)}
 
+    count = 0
     for repo, group in commits.groupby("repo"):
         layer = (
             group.assign(date=pd.to_datetime(group.datetime.dt.date))
             .groupby("date")
             .size()
         )
-        count += write_layer(layer, "git", str(repo))
+        count += write_layer(
+            layer,
+            "git",
+            str(repo),
+            title=str(repo),
+            group_title="Git",
+            color="#A6E3A1",
+            order=order_map[repo],
+            ndigits=0,
+        )
 
     return count
 
