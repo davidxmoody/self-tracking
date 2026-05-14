@@ -1,4 +1,5 @@
 import json
+import re
 
 from self_tracking.dirs import diary_dir
 
@@ -165,6 +166,62 @@ def git_layers():
     return count
 
 
+SCANNED_RE = re.compile(r"!\[\]\(scanned-\d+\.\w+\)")
+AUDIO_RE = re.compile(r"!\[\]\(audio-\d+-\d+\.\w+\)")
+
+
+# %%
+def diary_layers():
+    wordcounts = {}
+    scanned = {}
+    audio = {}
+    for file in (diary_dir / "entries").glob("*/*/*/diary.md"):
+        year, month, day = file.parts[-4:-1]
+        date = pd.Timestamp(f"{year}-{month}-{day}")
+        text = file.read_text()
+        wordcounts[date] = len(text.split())
+        scanned[date] = len(SCANNED_RE.findall(text))
+        audio[date] = len(AUDIO_RE.findall(text))
+
+    def to_series(d):
+        s = pd.Series(d).sort_index()
+        s.index.name = "date"
+        return s
+
+    count = 0
+    count += write_layer(
+        to_series(wordcounts),
+        "diary",
+        "wordcount",
+        title="Word count",
+        group_title="Diary",
+        color="#E5C07B",
+        order=0,
+        ndigits=0,
+    )
+    count += write_layer(
+        to_series(scanned),
+        "diary",
+        "scanned",
+        title="Scanned",
+        group_title="Diary",
+        color="#C678DD",
+        order=1,
+        ndigits=0,
+    )
+    count += write_layer(
+        to_series(audio),
+        "diary",
+        "audio",
+        title="Audio",
+        group_title="Diary",
+        color="#56B6C2",
+        order=2,
+        ndigits=0,
+    )
+    return count
+
+
 # %%
 def main():
     with yaspin(text="Layers") as spinner:
@@ -174,6 +231,7 @@ def main():
         count += workout_layers()
         count += misc_layers()
         count += git_layers()
+        count += diary_layers()
         spinner.text += f" ({count} layers)"
         spinner.ok("✔")
 
