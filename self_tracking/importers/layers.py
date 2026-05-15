@@ -118,6 +118,25 @@ def workout_layers():
 
 
 # %%
+def health_layers():
+    weight = d.weight()["weight"]
+    weight = weight.reindex(pd.date_range(weight.index.min(), weight.index.max()))
+    weight = weight.interpolate(method="linear")
+    rate = weight.diff().rolling(window=29, center=True, min_periods=1).mean()
+    rate = rate.rank(pct=True)
+    return write_layer(
+        rate,
+        "health",
+        "weight",
+        title="Weight",
+        group_title="Health",
+        color="#D19A66",
+        order=0,
+        ndigits=3,
+    )
+
+
+# %%
 def misc_layers():
     holidays = d.holidays()
     days = pd.concat(
@@ -229,6 +248,7 @@ def main():
         count += streaks_layers()
         count += atracker_layers()
         count += workout_layers()
+        count += health_layers()
         count += misc_layers()
         count += git_layers()
         count += diary_layers()
