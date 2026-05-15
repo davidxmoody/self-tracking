@@ -123,17 +123,32 @@ def health_layers():
     weight = weight.reindex(pd.date_range(weight.index.min(), weight.index.max()))
     weight = weight.interpolate(method="linear")
     rate = weight.diff().rolling(window=29, center=True, min_periods=1).mean()
-    rate = rate.rank(pct=True)
-    return write_layer(
-        rate,
+
+    gain = rate.where(rate > 0).rank(pct=True)
+    loss = (-rate).where(rate < 0).rank(pct=True)
+
+    count = 0
+    count += write_layer(
+        gain,
         "health",
-        "weight",
-        title="Weight",
+        "weight-gain",
+        title="Weight gain",
         group_title="Health",
-        color="#D19A66",
+        color="#E06C75",
         order=0,
         ndigits=3,
     )
+    count += write_layer(
+        loss,
+        "health",
+        "weight-loss",
+        title="Weight loss",
+        group_title="Health",
+        color="#98C379",
+        order=1,
+        ndigits=3,
+    )
+    return count
 
 
 # %%
