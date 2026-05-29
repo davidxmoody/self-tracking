@@ -25,6 +25,7 @@ periods = {
 
 aggregations = {
     "Daily average": "mean",
+    "Weekly average": "weekly_mean",
     "Total": "sum",
 }
 
@@ -259,6 +260,9 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, _n_clicks: i
         if agg == "mean":
             totals = df.mean()
             suffix = "/day"
+        elif agg == "weekly_mean":
+            totals = df.mean() * 7
+            suffix = "/week"
         else:
             totals = df.sum()
             suffix = ""
@@ -291,7 +295,10 @@ def update_graph(rule: str, agg: str, limit: bool, omit_last: bool, _n_clicks: i
         )
         return dcc.Graph(figure=fig)
 
-    df = df.resample(rule, closed="left", label="left").agg(agg).reset_index()
+    agg_func = "mean" if agg == "weekly_mean" else agg
+    df = df.resample(rule, closed="left", label="left").agg(agg_func).reset_index()
+    if agg == "weekly_mean":
+        df.loc[:, df.columns != "date"] *= 7
 
     if limit:
         df = df.iloc[-100:]
