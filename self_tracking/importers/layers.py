@@ -52,7 +52,7 @@ def write_layer(
 # %%
 def streaks_layers():
     streaks = d.streaks()
-    streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0.3, "missed": 0})
+    streaks["score"] = streaks.value.map({"completed": 1, "skipped": 0, "missed": 0})
 
     pivot = streaks.pivot_table(values="score", index="date", columns="name")
 
