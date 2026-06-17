@@ -127,7 +127,7 @@ def update_graph(rule: str, agg: str):
     fig.update_layout(
         height=650,
         yaxis_title="Energy balance (Cal)",
-        yaxis2=dict(title="Weight (lb)", range=[145, 175]),
+        yaxis2=dict(title="Weight (lb)", range=[145, 185]),
         xaxis=dict(
             rangeselector=dict(
                 buttons=[

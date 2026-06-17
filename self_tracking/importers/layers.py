@@ -200,11 +200,36 @@ def git_layers():
     return count
 
 
+# %%
+def work_git_layers():
+    file = diary_dir / "data/exports/work-commits.tsv"
+    commits = pd.read_csv(file, sep="\t", parse_dates=["date"])
+
+    repo_counts = commits.groupby("repo").size().sort_values(ascending=False)
+    order_map = {repo: i for i, repo in enumerate(repo_counts.index)}
+
+    count = 0
+    for repo, group in commits.groupby("repo"):
+        layer = group.groupby("date").size()
+        count += write_layer(
+            layer,
+            "work-git",
+            str(repo),
+            title=str(repo),
+            group_title="Work git",
+            color="#A6E3A1",
+            order=order_map[repo],
+            ndigits=0,
+        )
+
+    return count
+
+
+# %%
 SCANNED_RE = re.compile(r"!\[\]\(scanned-\d+\.\w+\)")
 AUDIO_RE = re.compile(r"!\[\]\(audio-\d+-\d+\.\w+\)")
 
 
-# %%
 def diary_layers():
     wordcounts = {}
     scanned = {}
@@ -266,6 +291,7 @@ def main():
         count += health_layers()
         count += misc_layers()
         count += git_layers()
+        count += work_git_layers()
         count += diary_layers()
         spinner.text += f" ({count} layers)"
         spinner.ok("✔")
