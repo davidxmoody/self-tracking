@@ -200,7 +200,7 @@ def extract_activity(root: ET.Element):
 
 # %%
 def extract_diet(root: ET.Element):
-    diet_sources = ["Calorie Counter", "YAZIO", "MyNetDiary"]
+    diet_sources = ["Calorie Counter", "Yazio", "MyNetDiary"]
 
     diet = pd.concat(
         {
