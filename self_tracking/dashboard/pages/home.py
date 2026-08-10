@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 import dash
 import dash_mantine_components as dmc
@@ -28,6 +28,8 @@ DAILY_WEEKS = 3
 # Weekly mode shows this many weeks, the last being the current (partial) one.
 WEEKLY_WEEKS = 20
 
+WEEK = pd.Timedelta(days=7)
+
 # Cal per lb of body weight per day, used for the basal estimate. Fixed here on
 # purpose; the Energy Balance page is the place to play with this assumption.
 BASAL_MULTIPLIER = 11.5
@@ -47,11 +49,12 @@ class Chart:
     Cal for energy balance).
 
     Cumulative charts are accumulation goals: what matters is the weekly total,
-    so daily mode plots a running total that resets each Monday and compares it
-    against a target that ramps up across the week. They only need `weekly`.
+    so daily mode draws a line climbing in real time as events happen, resetting
+    each Monday midnight, against a target ramping evenly across the week. They
+    only need `weekly`.
 
-    Non-cumulative charts are genuinely daily quantities, so they plot raw daily
-    values against a flat line and need a separate `daily` threshold.
+    Non-cumulative charts are genuinely daily quantities, so they stay as bars
+    against a flat line and need a separate `daily` threshold.
     """
 
     key: str
@@ -60,7 +63,6 @@ class Chart:
     weekly: tuple[float, float]
     daily: tuple[float, float] | None = None
     unit: str = "hours"
-    legend: bool = False
     cumulative: bool = True
 
     def thresholds(self, mode: str) -> tuple[float, float]:
@@ -95,7 +97,6 @@ CHARTS = [
         title="Cycling",
         colors={"Outdoor": "#3AA8BC", "Indoor": "#1F6E7D"},
         weekly=(3.0, 6.0),
-        legend=True,
     ),
     Chart(
         key="strength",
@@ -122,12 +123,66 @@ def format_hours(hours: float) -> str:
     return f"{h}:{m:02d}"
 
 
-def workout_hours(workout_type: str) -> pd.Series:
-    """Daily hours for one workout type, using ATracker's 6am day boundary."""
-    df = d.workouts()
-    df = df.loc[df.type == workout_type]
-    date = pd.to_datetime((cast(Any, df.index) - pd.Timedelta(hours=6)).date)
-    return df.duration.groupby(date).sum().rename_axis("date")
+def rgba(color: str, alpha: float) -> str:
+    r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+# --- Interval arithmetic ---------------------------------------------------
+# Everything below works on raw events as half-open [start, end) intervals, so
+# an event straddling midnight or a week boundary contributes its real share to
+# each side instead of landing wholly in one bucket.
+
+
+def to_hours(values) -> np.ndarray:
+    """Timestamps as float hours since the epoch, for interval arithmetic."""
+    index = pd.DatetimeIndex(values)
+    return index.to_numpy().astype("datetime64[s]").astype(np.int64) / 3600
+
+
+def intervals(start, duration) -> pd.DataFrame:
+    """Events as naive local start/end pairs."""
+    start = pd.DatetimeIndex(start).tz_localize(None)
+    end = start + pd.to_timedelta(np.asarray(duration, dtype=float), unit="h")
+    return pd.DataFrame({"start": start, "end": end})
+
+
+def overlap_hours(events: pd.DataFrame, lo, hi) -> np.ndarray:
+    """Event hours falling inside each [lo[i], hi[i]) window.
+
+    `lo` may hold a single value to measure every window from a common origin,
+    which is how the within-week running total is built.
+    """
+    lo_hours, hi_hours = to_hours(lo), to_hours(hi)
+    if events.empty:
+        return np.zeros(len(hi_hours))
+    starts, ends = to_hours(events.start), to_hours(events.end)
+    inside = np.minimum(ends[None, :], hi_hours[:, None]) - np.maximum(
+        starts[None, :], lo_hours[:, None]
+    )
+    return np.clip(inside, 0, None).sum(axis=1)
+
+
+def event_series(start_date: pd.Timestamp) -> dict[str, dict[str, pd.DataFrame]]:
+    """Raw events per chart, per stacked series."""
+    events = d.atracker_events(start_date.strftime("%Y-%m-%d"))
+    workouts = d.workouts()
+
+    def logged(category: str) -> pd.DataFrame:
+        rows = events.loc[events.category == category]
+        return intervals(rows.start, rows.duration)
+
+    def workout(kind: str) -> pd.DataFrame:
+        rows = workouts.loc[workouts.type == kind]
+        return intervals(rows.index, rows.duration)
+
+    return {
+        "meditation": {"Meditation": logged("meditation")},
+        "project": {"Project": logged("project")},
+        "chores": {"Chores": logged("chores")},
+        "cycling": {"Outdoor": workout("cycling"), "Indoor": workout("cycling_indoor")},
+        "strength": {"Strength": workout("strength")},
+    }
 
 
 def energy_balance() -> pd.Series:
@@ -153,90 +208,84 @@ def energy_balance() -> pd.Series:
     return (eaten - active - weight * BASAL_MULTIPLIER).round().rename_axis("date")
 
 
-def daily_frames() -> dict[str, pd.DataFrame]:
-    """Per-chart daily values, one column per stacked series."""
-    atracker = d.atracker(use_names=True)
-
-    return {
-        "meditation": atracker[["Meditation"]],
-        "project": atracker[["Project"]],
-        "chores": atracker[["Chores"]],
-        "cycling": pd.DataFrame(
-            {
-                "Outdoor": workout_hours("cycling"),
-                "Indoor": workout_hours("cycling_indoor"),
-            }
-        ),
-        "strength": pd.DataFrame({"Strength": workout_hours("strength")}),
-        "energy": pd.DataFrame({"Balance": energy_balance()}),
-    }
-
-
-def target_index(mode: str) -> pd.DatetimeIndex:
-    """The x values to plot, padded into the future where data doesn't exist."""
+def weeks_shown(mode: str) -> pd.DatetimeIndex:
+    """Monday midnights, the last being the current week's."""
     today = datetime.now().date()
-    current_week_start = pd.Timestamp(today - timedelta(days=today.weekday()))
-
-    if mode == "D":
-        start = current_week_start - pd.Timedelta(weeks=DAILY_WEEKS - 1)
-        return pd.date_range(start, periods=DAILY_WEEKS * 7, freq="D", name="date")
-
-    return pd.date_range(
-        end=current_week_start, periods=WEEKLY_WEEKS, freq="7D", name="date"
-    )
+    current = pd.Timestamp(today - timedelta(days=today.weekday()))
+    count = DAILY_WEEKS if mode == "D" else WEEKLY_WEEKS
+    return pd.date_range(end=current, periods=count, freq="7D", name="date")
 
 
-def prepare(
-    frame: pd.DataFrame, mode: str, index: pd.DatetimeIndex, cumulative: bool
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Bar heights and the per-bar increments they're built from.
+def week_grid(
+    series: dict[str, pd.DataFrame], start: pd.Timestamp, limit: pd.Timestamp
+) -> pd.DatetimeIndex:
+    """Times where the running total changes slope: week edges and event edges.
 
-    The two differ only for a cumulative chart in daily mode, where the bar is
-    the week-to-date total but the hover still wants that day's own value.
+    The total is piecewise linear between these, so plotting them alone is exact
+    and the line rises at a constant rate for the whole of an event.
     """
-    if mode == "W":
-        frame = frame.resample("W-MON", closed="left", label="left").sum(min_count=1)
-        frame = frame.reindex(index)
-        return frame, frame
-
-    frame = frame.reindex(index)
-
-    if not cumulative:
-        return frame, frame
-
-    frame = frame.fillna(0.0)
-    # Days that haven't happened yet would otherwise draw a flat run of bars out
-    # to Sunday, which reads as real data. cumsum leaves them NaN and carries
-    # the running total across, though nothing follows them within the week.
-    frame.loc[index > pd.Timestamp(datetime.now().date())] = np.nan
-
-    week_start = index - pd.to_timedelta(index.dayofweek, unit="D")
-    return frame.groupby(week_start).cumsum(), frame
+    points = {start, limit}
+    for events in series.values():
+        inside = events.loc[(events.end > start) & (events.start < limit)]
+        # Edges outside the window clamp onto one of the two already in the set.
+        points.update(inside.start[inside.start > start])
+        points.update(inside.end[inside.end < limit])
+    return pd.DatetimeIndex(sorted(points))
 
 
-def ramp(index: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
-    """Points for a target line climbing from 0 to `goal` across each week.
+def add_burn_up(
+    fig,
+    row: int,
+    chart: Chart,
+    series: dict[str, pd.DataFrame],
+    weeks: pd.DatetimeIndex,
+    now: pd.Timestamp,
+):
+    """One line per week, climbing in real time and stacked where a chart has
+    more than one series."""
+    for start in weeks:
+        limit = min(start + WEEK, now)
+        if limit <= start:
+            continue
 
-    Anchored to the week boundaries (midnight +/- 12h, where the separators sit)
-    and passing through goal * n/7 at the right edge of the nth day's bar, so
-    "am I above the line" is a fair question on any day of the week, not just
-    Sunday.
+        grid = week_grid(series, start, limit)
+        origin = pd.DatetimeIndex([start])
+        stacked = np.zeros(len(grid))
+
+        for depth, (name, color) in enumerate(chart.colors.items()):
+            own = overlap_hours(series[name], origin, grid)
+            stacked = stacked + own
+            fig.add_trace(
+                go.Scatter(
+                    x=grid,
+                    y=stacked,
+                    name=name,
+                    mode="lines",
+                    line=dict(color=color, width=2),
+                    # Fills to the series below, so the top line is the total
+                    # that the goal ramp is asking about.
+                    fill="tonexty" if depth else "tozeroy",
+                    fillcolor=rgba(color, 0.2),
+                    customdata=[format_hours(v) for v in own],
+                    hovertemplate=f"<b>%{{customdata}}</b> {name}<extra></extra>",
+                ),
+                row=row,
+                col=1,
+            )
+
+
+def ramp(weeks: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
+    """Target line climbing evenly from 0 at each Monday to `goal` at the next.
+
+    Being a straight line across the week, it passes through goal * n/7 at the
+    end of day n, so "am I above the line" is a fair question at any moment, not
+    just on Sunday night.
     """
-    day = pd.Timedelta(hours=12)
     xs: list[Any] = []
     ys: list[Any] = []
-
-    for week in range(DAILY_WEEKS):
-        days = index[week * 7 : (week + 1) * 7]
-        xs.append(days[0] - day)
-        ys.append(0.0)
-        for n, date in enumerate(days, start=1):
-            xs.append(date + day)
-            ys.append(goal * n / 7)
-        # Break the line so weeks don't get joined up by a diagonal.
-        xs.append(None)
-        ys.append(None)
-
+    for start in weeks:
+        xs.extend([start, start + WEEK, None])
+        ys.extend([0.0, goal, None])
     return xs, ys
 
 
@@ -245,8 +294,11 @@ def ramp(index: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
     [Input("home-mode", "value")],
 )
 def update_graph(mode: str):
-    frames = daily_frames()
-    index = target_index(mode)
+    weeks = weeks_shown(mode)
+    now = pd.Timestamp.now()
+    # A day of slack so events running into the first Monday are still fetched.
+    series = event_series(weeks[0] - pd.Timedelta(days=1))
+    energy = energy_balance()
 
     fig = make_subplots(
         rows=len(CHARTS),
@@ -257,53 +309,51 @@ def update_graph(mode: str):
     )
 
     for row, chart in enumerate(CHARTS, start=1):
-        values, increments = prepare(frames[chart.key], mode, index, chart.cumulative)
         burn_up = mode == "D" and chart.cumulative
 
-        if chart.unit == "hours":
-            if mode == "W":
-                values = values.fillna(0.0)
-                increments = values
+        if burn_up:
+            add_burn_up(fig, row, chart, series[chart.key], weeks, now)
+        elif chart.cumulative:
+            totals = {
+                name: overlap_hours(events, weeks, weeks + WEEK)
+                for name, events in series[chart.key].items()
+            }
             for name, color in chart.colors.items():
-                bars = values[name]
-                if burn_up:
-                    customdata = list(
-                        zip(
-                            [format_hours(v) for v in increments[name]],
-                            [format_hours(v) for v in bars],
-                        )
-                    )
-                    hovertemplate = (
-                        f"<b>%{{customdata[0]}}</b> {name}"
-                        "  (%{customdata[1]} this week)<extra></extra>"
-                    )
-                else:
-                    customdata = [format_hours(v) for v in bars]
-                    hovertemplate = f"<b>%{{customdata}}</b> {name}<extra></extra>"
+                values = totals[name]
                 fig.add_trace(
                     go.Bar(
-                        x=bars.index,
-                        y=bars.values,
+                        x=weeks,
+                        y=values,
                         name=name,
                         marker_color=color,
-                        showlegend=chart.legend,
-                        customdata=customdata,
-                        hovertemplate=hovertemplate,
+                        customdata=[format_hours(v) for v in values],
+                        hovertemplate=f"<b>%{{customdata}}</b> {name}<extra></extra>",
                     ),
                     row=row,
                     col=1,
                 )
         else:
-            bars = values.Balance
+            if mode == "D":
+                days = pd.date_range(weeks[0], periods=DAILY_WEEKS * 7, freq="D")
+                values = energy.reindex(days)
+                # Centre each bar in its day, so it spans midnight to midnight
+                # against the same time axis the lines above are drawn on.
+                x = days + pd.Timedelta(hours=12)
+            else:
+                values = (
+                    energy.resample("W-MON", closed="left", label="left")
+                    .sum(min_count=1)
+                    .reindex(weeks)
+                )
+                x = weeks
             fig.add_trace(
                 go.Bar(
-                    x=bars.index,
-                    y=bars.values,
+                    x=x,
+                    y=values.values,
                     name="Balance",
                     marker_color=[
-                        DEFICIT_COLOR if v < 0 else SURPLUS_COLOR for v in bars
+                        DEFICIT_COLOR if v < 0 else SURPLUS_COLOR for v in values
                     ],
-                    showlegend=False,
                     hovertemplate="<b>%{y:+,.0f}</b> Cal<extra></extra>",
                 ),
                 row=row,
@@ -312,22 +362,15 @@ def update_graph(mode: str):
             fig.add_hline(y=0, line_width=1, line_color="grey", row=row, col=1)
 
         minimum, ideal = chart.thresholds(mode)
-        for value, color, label in [
-            (minimum, MIN_COLOR, "Minimum"),
-            (ideal, IDEAL_COLOR, "Ideal"),
-        ]:
+        for value, color in [(minimum, MIN_COLOR), (ideal, IDEAL_COLOR)]:
             if burn_up:
-                xs, ys = ramp(index, value)
+                xs, ys = ramp(weeks, value)
                 fig.add_trace(
                     go.Scatter(
                         x=xs,
                         y=ys,
                         mode="lines",
-                        name=label,
-                        legendgroup=label,
-                        # One entry for the whole figure; the group toggles the rest.
-                        showlegend=row == 1,
-                        line=dict(color=color, width=1, dash="dash"),
+                        line=dict(color=color, width=2, dash="dash"),
                         hoverinfo="skip",
                     ),
                     row=row,
@@ -336,49 +379,35 @@ def update_graph(mode: str):
             else:
                 fig.add_hline(
                     y=value,
-                    line_width=1,
+                    line_width=2,
                     line_dash="dash",
                     line_color=color,
                     row=row,
                     col=1,
                 )
 
-    if mode == "W":
-        # Flat threshold lines are shapes rather than traces, so they need dummy
-        # traces to appear in the legend. In daily mode the ramps do it themselves.
-        for label, color in [("Minimum", MIN_COLOR), ("Ideal", IDEAL_COLOR)]:
-            fig.add_trace(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    name=label,
-                    line=dict(color=color, width=1, dash="dash"),
-                    hoverinfo="skip",
-                ),
-                row=1,
-                col=1,
-            )
-
     if mode == "D":
-        pad = pd.Timedelta(hours=12)
-        fig.update_xaxes(tickformat="%a<br>%b %d", dtick="D1", hoverformat="%a %b %d")
-        # Separators between the weeks, matching the ATracker calendar view.
-        for week in range(1, DAILY_WEEKS):
+        span = [weeks[0], weeks[-1] + WEEK]
+        fig.update_xaxes(
+            # Ticks at midday so each label sits under the middle of its day
+            # rather than on the boundary between two.
+            tick0=weeks[0] + pd.Timedelta(hours=12),
+            dtick=24 * 60 * 60 * 1000,
+            tickformat="%a<br>%b %d",
+            hoverformat="%a %b %d, %H:%M",
+        )
+        # Separators on the week boundaries, matching the ATracker calendar view.
+        for start in weeks[1:]:
             fig.add_vline(
-                x=index[week * 7] - pad,
-                line_width=1,
-                line_dash="dash",
-                line_color="gray",
+                x=start, line_width=1, line_dash="dash", line_color="gray"
             )
     else:
         pad = pd.Timedelta(days=4)
+        span = [weeks[0] - pad, weeks[-1] + pad]
         fig.update_xaxes(tickformat="%b %d", hoverformat="Week of %b %d")
 
-    fig.update_xaxes(
-        autorange=False, range=[index[0] - pad, index[-1] + pad], showgrid=False
-    )
-    fig.update_yaxes(showgrid=False)
+    fig.update_xaxes(autorange=False, range=span, showgrid=False)
+    fig.update_yaxes(showgrid=False, rangemode="tozero")
     fig.update_annotations(font_size=13, xanchor="left", x=0)
 
     fig.update_layout(
@@ -386,13 +415,7 @@ def update_graph(mode: str):
         barmode="stack",
         bargap=0.2,
         hovermode="x unified",
-        legend={
-            "orientation": "h",
-            "yanchor": "bottom",
-            "y": 1.02,
-            "x": 1,
-            "xanchor": "right",
-        },
+        showlegend=False,
         margin={"l": 50, "r": 10, "t": 60, "b": 20},
     )
 
