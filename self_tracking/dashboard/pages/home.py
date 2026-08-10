@@ -43,21 +43,30 @@ SURPLUS_COLOR = "#D1495B"
 class Chart:
     """One row of the dashboard.
 
-    `daily` / `weekly` are (minimum, ideal) goal thresholds in the chart's own
-    units (hours, or Cal for energy balance). They're set independently rather
-    than derived as daily x 7 because most goals don't scale that way.
+    `weekly` is the (minimum, ideal) goal in the chart's own units (hours, or
+    Cal for energy balance).
+
+    Cumulative charts are accumulation goals: what matters is the weekly total,
+    so daily mode plots a running total that resets each Monday and compares it
+    against a target that ramps up across the week. They only need `weekly`.
+
+    Non-cumulative charts are genuinely daily quantities, so they plot raw daily
+    values against a flat line and need a separate `daily` threshold.
     """
 
     key: str
     title: str
     colors: dict[str, str]
-    daily: tuple[float, float]
     weekly: tuple[float, float]
+    daily: tuple[float, float] | None = None
     unit: str = "hours"
     legend: bool = False
+    cumulative: bool = True
 
     def thresholds(self, mode: str) -> tuple[float, float]:
-        return self.daily if mode == "D" else self.weekly
+        if mode == "D" and self.daily is not None:
+            return self.daily
+        return self.weekly
 
 
 # --- Goal thresholds -------------------------------------------------------
@@ -67,28 +76,24 @@ CHARTS = [
         key="meditation",
         title="Meditation",
         colors={"Meditation": "#A588B1"},
-        daily=(10 / 60, 30 / 60),
         weekly=(70 / 60, 210 / 60),
     ),
     Chart(
         key="project",
         title="Project",
         colors={"Project": "#3AA84F"},
-        daily=(5 / 7, 20 / 7),
         weekly=(5, 20),
     ),
     Chart(
         key="chores",
         title="Chores",
         colors={"Chores": "#8B529F"},
-        daily=(1 / 7, 3 / 7),
         weekly=(1, 3),
     ),
     Chart(
         key="cycling",
         title="Cycling",
         colors={"Outdoor": "#3AA8BC", "Indoor": "#1F6E7D"},
-        daily=(0.5, 1.0),
         weekly=(3.0, 6.0),
         legend=True,
     ),
@@ -96,7 +101,6 @@ CHARTS = [
         key="strength",
         title="Strength training",
         colors={"Strength": "#E07B39"},
-        daily=(0.5, 1.0),
         weekly=(2.0, 3.0),
     ),
     Chart(
@@ -106,11 +110,14 @@ CHARTS = [
         daily=(-100, -500),
         weekly=(-700, -3500),
         unit="cal",
+        cumulative=False,
     ),
 ]
 
 
 def format_hours(hours: float) -> str:
+    if pd.isna(hours):
+        return "-"
     h, m = divmod(int(round(hours * 60)), 60)
     return f"{h}:{m:02d}"
 
@@ -179,10 +186,58 @@ def target_index(mode: str) -> pd.DatetimeIndex:
     )
 
 
-def prepare(frame: pd.DataFrame, mode: str, index: pd.DatetimeIndex) -> pd.DataFrame:
+def prepare(
+    frame: pd.DataFrame, mode: str, index: pd.DatetimeIndex, cumulative: bool
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Bar heights and the per-bar increments they're built from.
+
+    The two differ only for a cumulative chart in daily mode, where the bar is
+    the week-to-date total but the hover still wants that day's own value.
+    """
     if mode == "W":
         frame = frame.resample("W-MON", closed="left", label="left").sum(min_count=1)
-    return frame.reindex(index)
+        frame = frame.reindex(index)
+        return frame, frame
+
+    frame = frame.reindex(index)
+
+    if not cumulative:
+        return frame, frame
+
+    frame = frame.fillna(0.0)
+    # Days that haven't happened yet would otherwise draw a flat run of bars out
+    # to Sunday, which reads as real data. cumsum leaves them NaN and carries
+    # the running total across, though nothing follows them within the week.
+    frame.loc[index > pd.Timestamp(datetime.now().date())] = np.nan
+
+    week_start = index - pd.to_timedelta(index.dayofweek, unit="D")
+    return frame.groupby(week_start).cumsum(), frame
+
+
+def ramp(index: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
+    """Points for a target line climbing from 0 to `goal` across each week.
+
+    Anchored to the week boundaries (midnight +/- 12h, where the separators sit)
+    and passing through goal * n/7 at the right edge of the nth day's bar, so
+    "am I above the line" is a fair question on any day of the week, not just
+    Sunday.
+    """
+    day = pd.Timedelta(hours=12)
+    xs: list[Any] = []
+    ys: list[Any] = []
+
+    for week in range(DAILY_WEEKS):
+        days = index[week * 7 : (week + 1) * 7]
+        xs.append(days[0] - day)
+        ys.append(0.0)
+        for n, date in enumerate(days, start=1):
+            xs.append(date + day)
+            ys.append(goal * n / 7)
+        # Break the line so weeks don't get joined up by a diagonal.
+        xs.append(None)
+        ys.append(None)
+
+    return xs, ys
 
 
 @dash.callback(
@@ -202,34 +257,51 @@ def update_graph(mode: str):
     )
 
     for row, chart in enumerate(CHARTS, start=1):
-        frame = prepare(frames[chart.key], mode, index)
+        values, increments = prepare(frames[chart.key], mode, index, chart.cumulative)
+        burn_up = mode == "D" and chart.cumulative
 
         if chart.unit == "hours":
-            frame = frame.fillna(0.0)
+            if mode == "W":
+                values = values.fillna(0.0)
+                increments = values
             for name, color in chart.colors.items():
-                values = frame[name]
+                bars = values[name]
+                if burn_up:
+                    customdata = list(
+                        zip(
+                            [format_hours(v) for v in increments[name]],
+                            [format_hours(v) for v in bars],
+                        )
+                    )
+                    hovertemplate = (
+                        f"<b>%{{customdata[0]}}</b> {name}"
+                        "  (%{customdata[1]} this week)<extra></extra>"
+                    )
+                else:
+                    customdata = [format_hours(v) for v in bars]
+                    hovertemplate = f"<b>%{{customdata}}</b> {name}<extra></extra>"
                 fig.add_trace(
                     go.Bar(
-                        x=values.index,
-                        y=values.values,
+                        x=bars.index,
+                        y=bars.values,
                         name=name,
                         marker_color=color,
                         showlegend=chart.legend,
-                        customdata=[format_hours(v) for v in values],
-                        hovertemplate=f"<b>%{{customdata}}</b> {name}<extra></extra>",
+                        customdata=customdata,
+                        hovertemplate=hovertemplate,
                     ),
                     row=row,
                     col=1,
                 )
         else:
-            values = frame.Balance
+            bars = values.Balance
             fig.add_trace(
                 go.Bar(
-                    x=values.index,
-                    y=values.values,
+                    x=bars.index,
+                    y=bars.values,
                     name="Balance",
                     marker_color=[
-                        DEFICIT_COLOR if v < 0 else SURPLUS_COLOR for v in values
+                        DEFICIT_COLOR if v < 0 else SURPLUS_COLOR for v in bars
                     ],
                     showlegend=False,
                     hovertemplate="<b>%{y:+,.0f}</b> Cal<extra></extra>",
@@ -240,31 +312,53 @@ def update_graph(mode: str):
             fig.add_hline(y=0, line_width=1, line_color="grey", row=row, col=1)
 
         minimum, ideal = chart.thresholds(mode)
-        for value, color in [(minimum, MIN_COLOR), (ideal, IDEAL_COLOR)]:
-            fig.add_hline(
-                y=value,
-                line_width=1,
-                line_dash="dash",
-                line_color=color,
-                row=row,
+        for value, color, label in [
+            (minimum, MIN_COLOR, "Minimum"),
+            (ideal, IDEAL_COLOR, "Ideal"),
+        ]:
+            if burn_up:
+                xs, ys = ramp(index, value)
+                fig.add_trace(
+                    go.Scatter(
+                        x=xs,
+                        y=ys,
+                        mode="lines",
+                        name=label,
+                        legendgroup=label,
+                        # One entry for the whole figure; the group toggles the rest.
+                        showlegend=row == 1,
+                        line=dict(color=color, width=1, dash="dash"),
+                        hoverinfo="skip",
+                    ),
+                    row=row,
+                    col=1,
+                )
+            else:
+                fig.add_hline(
+                    y=value,
+                    line_width=1,
+                    line_dash="dash",
+                    line_color=color,
+                    row=row,
+                    col=1,
+                )
+
+    if mode == "W":
+        # Flat threshold lines are shapes rather than traces, so they need dummy
+        # traces to appear in the legend. In daily mode the ramps do it themselves.
+        for label, color in [("Minimum", MIN_COLOR), ("Ideal", IDEAL_COLOR)]:
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    name=label,
+                    line=dict(color=color, width=1, dash="dash"),
+                    hoverinfo="skip",
+                ),
+                row=1,
                 col=1,
             )
-
-    # Dummy traces so the dashed threshold lines get a single shared legend
-    # entry instead of being annotated on every subplot.
-    for label, color in [("Minimum", MIN_COLOR), ("Ideal", IDEAL_COLOR)]:
-        fig.add_trace(
-            go.Scatter(
-                x=[None],
-                y=[None],
-                mode="lines",
-                name=label,
-                line=dict(color=color, width=1, dash="dash"),
-                hoverinfo="skip",
-            ),
-            row=1,
-            col=1,
-        )
 
     if mode == "D":
         pad = pd.Timedelta(hours=12)
