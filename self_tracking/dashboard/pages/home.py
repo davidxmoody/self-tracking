@@ -37,6 +37,12 @@ BASAL_MULTIPLIER = 11.5
 MIN_COLOR = "#E8A33D"
 IDEAL_COLOR = "#4C9F70"
 
+# Goal line weights. The stepped lines need more than the flat ones to read as
+# equally heavy: their dash pattern restarts at every step, and they sit over a
+# filled area and a solid series line rather than alone over bars.
+GOAL_WIDTH = 2
+STEP_GOAL_WIDTH = 4
+
 DEFICIT_COLOR = "#4C9F70"
 SURPLUS_COLOR = "#D1495B"
 
@@ -50,8 +56,8 @@ class Chart:
 
     Cumulative charts are accumulation goals: what matters is the weekly total,
     so daily mode draws a line climbing in real time as events happen, resetting
-    each Monday midnight, against a target ramping evenly across the week. They
-    only need `weekly`.
+    each Monday midnight, against a target stepping up a day's share every day.
+    They only need `weekly`.
 
     Non-cumulative charts are genuinely daily quantities, so they stay as bars
     against a flat line and need a separate `daily` threshold.
@@ -96,13 +102,13 @@ CHARTS = [
         key="cycling",
         title="Cycling",
         colors={"Outdoor": "#3AA8BC", "Indoor": "#1F6E7D"},
-        weekly=(3.0, 6.0),
+        weekly=(1.0, 5.0),
     ),
     Chart(
         key="strength",
         title="Strength training",
         colors={"Strength": "#E07B39"},
-        weekly=(2.0, 3.0),
+        weekly=(0.5, 1.5),
     ),
     Chart(
         key="energy",
@@ -274,18 +280,23 @@ def add_burn_up(
             )
 
 
-def ramp(weeks: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
-    """Target line climbing evenly from 0 at each Monday to `goal` at the next.
+def goal_steps(weeks: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
+    """Target line holding at n/7 of the weekly goal for the whole of day n.
 
-    Being a straight line across the week, it passes through goal * n/7 at the
-    end of day n, so "am I above the line" is a fair question at any moment, not
-    just on Sunday night.
+    Stepping rather than sloping means the mark to beat is fixed for the day:
+    clear today's step and you're on track, whatever time it is.
     """
     xs: list[Any] = []
     ys: list[Any] = []
     for start in weeks:
-        xs.extend([start, start + WEEK, None])
-        ys.extend([0.0, goal, None])
+        for day in range(7):
+            level = goal * (day + 1) / 7
+            xs.extend(
+                [start + pd.Timedelta(days=day), start + pd.Timedelta(days=day + 1)]
+            )
+            ys.extend([level, level])
+        xs.append(None)
+        ys.append(None)
     return xs, ys
 
 
@@ -364,13 +375,13 @@ def update_graph(mode: str):
         minimum, ideal = chart.thresholds(mode)
         for value, color in [(minimum, MIN_COLOR), (ideal, IDEAL_COLOR)]:
             if burn_up:
-                xs, ys = ramp(weeks, value)
+                xs, ys = goal_steps(weeks, value)
                 fig.add_trace(
                     go.Scatter(
                         x=xs,
                         y=ys,
                         mode="lines",
-                        line=dict(color=color, width=2, dash="dash"),
+                        line=dict(color=color, width=STEP_GOAL_WIDTH, dash="dash"),
                         hoverinfo="skip",
                     ),
                     row=row,
@@ -379,7 +390,7 @@ def update_graph(mode: str):
             else:
                 fig.add_hline(
                     y=value,
-                    line_width=2,
+                    line_width=GOAL_WIDTH,
                     line_dash="dash",
                     line_color=color,
                     row=row,
@@ -398,9 +409,7 @@ def update_graph(mode: str):
         )
         # Separators on the week boundaries, matching the ATracker calendar view.
         for start in weeks[1:]:
-            fig.add_vline(
-                x=start, line_width=1, line_dash="dash", line_color="gray"
-            )
+            fig.add_vline(x=start, line_width=1, line_dash="dash", line_color="gray")
     else:
         pad = pd.Timedelta(days=4)
         span = [weeks[0] - pad, weeks[-1] + pad]
