@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
 
 import dash
 import dash_mantine_components as dmc
@@ -37,11 +36,7 @@ BASAL_MULTIPLIER = 11.5
 MIN_COLOR = "#E8A33D"
 IDEAL_COLOR = "#4C9F70"
 
-# Goal line weights. The stepped lines need more than the flat ones to read as
-# equally heavy: their dash pattern restarts at every step, and they sit over a
-# filled area and a solid series line rather than alone over bars.
 GOAL_WIDTH = 2
-STEP_GOAL_WIDTH = 4
 
 DEFICIT_COLOR = "#4C9F70"
 SURPLUS_COLOR = "#D1495B"
@@ -51,30 +46,21 @@ SURPLUS_COLOR = "#D1495B"
 class Chart:
     """One row of the dashboard.
 
-    `weekly` is the (minimum, ideal) goal in the chart's own units (hours, or
-    Cal for energy balance).
+    Every chart is a weekly goal: `weekly` is the (minimum, ideal) target in the
+    chart's own units, and daily mode accumulates within each week towards it,
+    resetting every Monday midnight.
 
-    Cumulative charts are accumulation goals: what matters is the weekly total,
-    so daily mode draws a line climbing in real time as events happen, resetting
-    each Monday midnight, against a target stepping up a day's share every day.
-    They only need `weekly`.
-
-    Non-cumulative charts are genuinely daily quantities, so they stay as bars
-    against a flat line and need a separate `daily` threshold.
+    Timed charts are built from raw event intervals, so daily mode can draw a
+    line climbing in real time while an event runs. The rest come from a daily
+    series and accumulate a day at a time as a waterfall.
     """
 
     key: str
     title: str
     colors: dict[str, str]
     weekly: tuple[float, float]
-    daily: tuple[float, float] | None = None
     unit: str = "hours"
-    cumulative: bool = True
-
-    def thresholds(self, mode: str) -> tuple[float, float]:
-        if mode == "D" and self.daily is not None:
-            return self.daily
-        return self.weekly
+    timed: bool = True
 
 
 # --- Goal thresholds -------------------------------------------------------
@@ -114,10 +100,9 @@ CHARTS = [
         key="energy",
         title="Energy balance",
         colors={"Balance": DEFICIT_COLOR},
-        daily=(-100, -500),
         weekly=(-700, -3500),
         unit="cal",
-        cumulative=False,
+        timed=False,
     ),
 ]
 
@@ -269,7 +254,7 @@ def add_burn_up(
                     mode="lines",
                     line=dict(color=color, width=2),
                     # Fills to the series below, so the top line is the total
-                    # that the goal ramp is asking about.
+                    # that the goal line is asking about.
                     fill="tonexty" if depth else "tozeroy",
                     fillcolor=rgba(color, 0.2),
                     customdata=[format_hours(v) for v in own],
@@ -280,24 +265,41 @@ def add_burn_up(
             )
 
 
-def goal_steps(weeks: pd.DatetimeIndex, goal: float) -> tuple[list, list]:
-    """Target line holding at n/7 of the weekly goal for the whole of day n.
+def add_waterfall(fig, row: int, daily: pd.Series, weeks: pd.DatetimeIndex):
+    """Running weekly total as floating bars, one per day.
 
-    Stepping rather than sloping means the mark to beat is fixed for the day:
-    clear today's step and you're on track, whatever time it is.
+    Each bar spans that day's change and hangs off the total so far, so the top
+    of the last bar in a week is the week's balance, which is what the goal
+    lines are drawn at. Colour is the day's own direction, not the total's.
     """
-    xs: list[Any] = []
-    ys: list[Any] = []
-    for start in weeks:
-        for day in range(7):
-            level = goal * (day + 1) / 7
-            xs.extend(
-                [start + pd.Timedelta(days=day), start + pd.Timedelta(days=day + 1)]
-            )
-            ys.extend([level, level])
-        xs.append(None)
-        ys.append(None)
-    return xs, ys
+    days = pd.date_range(weeks[0], periods=len(weeks) * 7, freq="D")
+    change = daily.reindex(days).to_numpy(dtype=float)
+
+    # Days with no data hold the total flat rather than breaking the run; their
+    # own bar is NaN and so isn't drawn.
+    totals = np.nan_to_num(change).reshape(len(weeks), 7).cumsum(axis=1).ravel()
+    base = totals - np.nan_to_num(change)
+
+    fig.add_trace(
+        go.Bar(
+            # Centred in the day, so each bar spans midnight to midnight against
+            # the same time axis the lines above are drawn on.
+            x=days + pd.Timedelta(hours=12),
+            y=change,
+            base=base,
+            name="Balance",
+            marker_color=[
+                DEFICIT_COLOR if v < 0 else SURPLUS_COLOR for v in np.nan_to_num(change)
+            ],
+            customdata=np.stack([np.nan_to_num(change), totals], axis=-1),
+            hovertemplate=(
+                "<b>%{customdata[1]:+,.0f}</b> Cal"
+                " (%{customdata[0]:+,.0f} today)<extra></extra>"
+            ),
+        ),
+        row=row,
+        col=1,
+    )
 
 
 @dash.callback(
@@ -320,11 +322,9 @@ def update_graph(mode: str):
     )
 
     for row, chart in enumerate(CHARTS, start=1):
-        burn_up = mode == "D" and chart.cumulative
-
-        if burn_up:
+        if mode == "D" and chart.timed:
             add_burn_up(fig, row, chart, series[chart.key], weeks, now)
-        elif chart.cumulative:
+        elif chart.timed:
             totals = {
                 name: overlap_hours(events, weeks, weeks + WEEK)
                 for name, events in series[chart.key].items()
@@ -343,23 +343,18 @@ def update_graph(mode: str):
                     row=row,
                     col=1,
                 )
+        elif mode == "D":
+            add_waterfall(fig, row, energy, weeks)
+            fig.add_hline(y=0, line_width=1, line_color="grey", row=row, col=1)
         else:
-            if mode == "D":
-                days = pd.date_range(weeks[0], periods=DAILY_WEEKS * 7, freq="D")
-                values = energy.reindex(days)
-                # Centre each bar in its day, so it spans midnight to midnight
-                # against the same time axis the lines above are drawn on.
-                x = days + pd.Timedelta(hours=12)
-            else:
-                values = (
-                    energy.resample("W-MON", closed="left", label="left")
-                    .sum(min_count=1)
-                    .reindex(weeks)
-                )
-                x = weeks
+            values = (
+                energy.resample("W-MON", closed="left", label="left")
+                .sum(min_count=1)
+                .reindex(weeks)
+            )
             fig.add_trace(
                 go.Bar(
-                    x=x,
+                    x=weeks,
                     y=values.values,
                     name="Balance",
                     marker_color=[
@@ -372,30 +367,16 @@ def update_graph(mode: str):
             )
             fig.add_hline(y=0, line_width=1, line_color="grey", row=row, col=1)
 
-        minimum, ideal = chart.thresholds(mode)
+        minimum, ideal = chart.weekly
         for value, color in [(minimum, MIN_COLOR), (ideal, IDEAL_COLOR)]:
-            if burn_up:
-                xs, ys = goal_steps(weeks, value)
-                fig.add_trace(
-                    go.Scatter(
-                        x=xs,
-                        y=ys,
-                        mode="lines",
-                        line=dict(color=color, width=STEP_GOAL_WIDTH, dash="dash"),
-                        hoverinfo="skip",
-                    ),
-                    row=row,
-                    col=1,
-                )
-            else:
-                fig.add_hline(
-                    y=value,
-                    line_width=GOAL_WIDTH,
-                    line_dash="dash",
-                    line_color=color,
-                    row=row,
-                    col=1,
-                )
+            fig.add_hline(
+                y=value,
+                line_width=GOAL_WIDTH,
+                line_dash="dash",
+                line_color=color,
+                row=row,
+                col=1,
+            )
 
     if mode == "D":
         span = [weeks[0], weeks[-1] + WEEK]
