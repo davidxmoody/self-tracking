@@ -3,3 +3,4 @@ __pycache__
 cache/
 .ipynb_checkpoints/
 *.ipynb
+self_tracking/dashboard/assets/routes.pbf

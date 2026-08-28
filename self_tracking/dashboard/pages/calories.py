@@ -88,7 +88,7 @@ def update_graph(rule: str, agg: str):
     df.index = df.index + period_offsets[rule]
 
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05
+        rows=2, cols=1, shared_xaxes=True, row_heights=[0.4, 0.6], vertical_spacing=0.05
     )
 
     fig.add_trace(
@@ -125,7 +125,7 @@ def update_graph(rule: str, agg: str):
     )
 
     fig.update_layout(
-        height=650,
+        height=1200,
         yaxis_title="Energy balance (Cal)",
         yaxis2=dict(title="Weight (lb)", range=[145, 185]),
         xaxis=dict(
@@ -136,9 +136,6 @@ def update_graph(rule: str, agg: str):
                     dict(step="all", label="All"),
                 ]
             ),
-        ),
-        xaxis2=dict(
-            rangeslider=dict(visible=True),
         ),
         showlegend=False,
         margin={"l": 80, "r": 80, "t": 20, "b": 0},
