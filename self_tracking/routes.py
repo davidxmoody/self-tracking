@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 import gzip
 import math
 from pathlib import Path
@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 
 import geobuf
 import numpy as np
+import pandas as pd
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from yaspin import yaspin
@@ -27,19 +28,30 @@ coordinate_precision = 5
 
 epoch = date(1970, 1, 1)
 
+# Gaps longer than this are treated as pauses and left out of the duration.
+# Summing the sub-threshold gaps reproduces the durations in workouts/*.tsv;
+# plain start-to-end elapsed time overshoots badly on rides with stops.
+pause_threshold = timedelta(seconds=60)
+
 
 # %%
-def read_trackpoints(filepath: Path) -> np.ndarray:
-    """Parse a gzipped GPX file into an (n, 2) array of (lon, lat)."""
+def read_track(filepath: Path) -> tuple[np.ndarray, list[datetime]]:
+    """Parse a gzipped GPX file into an (n, 2) array of (lon, lat) and its times."""
     with gzip.open(filepath) as file:
         root = ET.parse(file).getroot()
-        return np.array(
-            [
-                (float(p.attrib["lon"]), float(p.attrib["lat"]))
-                for p in root.iter()
-                if p.tag.endswith("trkpt")
-            ]
-        )
+
+    points: list[tuple[float, float]] = []
+    times: list[datetime] = []
+    for trkpt in root.iter():
+        if not trkpt.tag.endswith("trkpt"):
+            continue
+        points.append((float(trkpt.attrib["lon"]), float(trkpt.attrib["lat"])))
+        for child in trkpt:
+            if child.tag.endswith("time") and child.text:
+                times.append(datetime.fromisoformat(child.text.replace("Z", "+00:00")))
+                break
+
+    return np.array(points), times
 
 
 def to_metres(points: np.ndarray) -> np.ndarray:
@@ -96,11 +108,21 @@ def total_distance(points: np.ndarray) -> float:
     return float(steps.sum() / 1000)
 
 
+def moving_duration(times: list[datetime]) -> float:
+    """Hours spent moving, excluding pauses."""
+    seconds = sum(
+        (b - a).total_seconds()
+        for a, b in zip(times, times[1:])
+        if (b - a) <= pause_threshold
+    )
+    return seconds / 3600
+
+
 # %%
 def build_feature(filepath: Path) -> dict | None:
     (day, clock, activity) = filepath.name[: -len(".gpx.gz")].split("_")
 
-    points = read_trackpoints(filepath)
+    (points, times) = read_track(filepath)
     if len(points) < 2:
         return None
 
@@ -114,6 +136,7 @@ def build_feature(filepath: Path) -> dict | None:
             "day": (date.fromisoformat(day) - epoch).days,
             "activity": activity,
             "distance": round(total_distance(points), 2),
+            "duration": round(moving_duration(times), 4),
         },
         "geometry": {
             "type": "LineString",
@@ -193,13 +216,17 @@ def watch(features: dict[Path, dict]):
 
 
 # %%
-def route_index() -> list[tuple[int, str]]:
-    """(epoch day, activity) for every route, read from filenames alone."""
-    index = []
-    for filepath in sorted(routes_dir.glob("*.gpx.gz")):
-        (day, _, activity) = filepath.name[: -len(".gpx.gz")].split("_")
-        index.append(((date.fromisoformat(day) - epoch).days, activity))
-    return index
+def route_metadata() -> pd.DataFrame:
+    """Per-route date, activity, distance and duration, from the built asset."""
+    if not asset_path.exists():
+        raise FileNotFoundError(
+            f"{asset_path} not found - run `python -m self_tracking.routes` first"
+        )
+
+    collection = geobuf.decode(asset_path.read_bytes())
+    df = pd.DataFrame([f["properties"] for f in collection["features"]])
+    df["date"] = pd.to_datetime(df.date)
+    return df
 
 
 def to_date(day: int) -> date:

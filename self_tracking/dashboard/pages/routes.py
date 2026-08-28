@@ -1,14 +1,15 @@
-from datetime import date, timedelta
 from typing import Any, cast
 
 import dash
 import dash_leaflet as dl
 import dash_mantine_components as dmc
-from dash import Input, Output, html
+import pandas as pd
+import plotly.graph_objects as go
+from dash import Input, Output, State, dcc, html
 from dash_extensions.javascript import arrow_function, variable
 
 from self_tracking.dashboard.components.controls import Checkbox, Select
-from self_tracking.routes import route_index, to_date
+from self_tracking.routes import route_metadata, to_date
 
 dash.register_page(__name__, title="Routes")
 
@@ -23,28 +24,111 @@ activity_colors = {
 # Sequential amber ramp, mirroring the one in assets/routes.js
 date_ramp = ["#FFE0A3", "#FDC161", "#F79E28", "#E67912", "#C25A0A"]
 
+# The chart shares the map's colours, so it takes the map's dark surface too -
+# the bright activity hues are unreadable on a light background
+surface = "#1a1a19"
+
 center_point = (51.44919535475215, -2.608414238285152)
 
 routes_url = "/assets/routes.pbf"
 
-routes = route_index()
-first_day = min(day for day, _ in routes)
-last_day = max(day for day, _ in routes)
-
-presets = {
-    "all": "All",
-    "year": "This year",
-    "12m": "Last 12 months",
-    "90d": "Last 90 days",
+periods = {
+    "Day": "D",
+    "Week": "W-MON",
+    "Month": "MS",
+    "Quarter": "QS",
+    "Year": "YS",
 }
 
+routes = route_metadata()
+epoch = pd.Timestamp("1970-01-01")
+full_range = (routes.date.min(), routes.date.max())
 
-def year_marks():
-    years = range(to_date(first_day).year + 1, to_date(last_day).year + 1)
-    return [
-        {"value": (date(year, 1, 1) - date(1970, 1, 1)).days, "label": f"'{year % 100}"}
-        for year in years
-    ]
+
+def to_day(timestamp: pd.Timestamp) -> int:
+    return int((timestamp.normalize() - epoch).days)
+
+
+# %%
+def build_figure(rule: str, activities: list[str], x_range) -> go.Figure:
+    selected = routes[routes.activity.isin(activities)]
+
+    fig = go.Figure()
+    if not selected.empty:
+        binned = (
+            selected.set_index("date")
+            .groupby("activity")
+            .duration.resample(rule, label="left", closed="left")
+            .sum()
+            .unstack("activity")
+            .fillna(0)
+        )
+        # Fixed order, so a hidden activity never repaints the others
+        for activity in activity_colors:
+            if activity not in binned:
+                continue
+            fig.add_trace(
+                go.Bar(
+                    x=binned.index,
+                    y=binned[activity],
+                    name=activity.title(),
+                    marker_color=activity_colors[activity],
+                    hovertemplate="%{x|%Y-%m-%d}<br>%{y:.1f} h<extra>%{fullData.name}</extra>",
+                )
+            )
+
+    fig.update_layout(
+        barmode="stack",
+        bargap=0.15,
+        height=230,
+        margin=dict(l=45, r=15, t=25, b=5),
+        paper_bgcolor=surface,
+        plot_bgcolor=surface,
+        font=dict(color="#c3c2b7", size=11),
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            traceorder="normal",
+            x=1,
+            y=1.12,
+            xanchor="right",
+            yanchor="top",
+            bgcolor="rgba(0,0,0,0)",
+        ),
+    )
+    fig.update_yaxes(
+        title=dict(text="Hours", font=dict(size=11)),
+        gridcolor="#33332f",
+        zerolinecolor="#33332f",
+    )
+    fig.update_xaxes(
+        type="date",
+        range=list(x_range),
+        showgrid=False,
+        rangeslider=dict(
+            visible=True,
+            thickness=0.28,
+            bgcolor=surface,
+            bordercolor="#4a4a45",
+            borderwidth=1,
+        ),
+    )
+    return fig
+
+
+def selected_range(relayout: dict | None):
+    """Pull the range out of a graph relayout, whose shape varies by gesture."""
+    if not relayout or relayout.get("xaxis.autorange"):
+        return full_range
+
+    if "xaxis.range" in relayout:
+        (low, high) = relayout["xaxis.range"]
+    elif "xaxis.range[0]" in relayout:
+        (low, high) = (relayout["xaxis.range[0]"], relayout["xaxis.range[1]"])
+    else:
+        return full_range
+
+    return (pd.to_datetime(low), pd.to_datetime(high))
 
 
 # %%
@@ -120,37 +204,22 @@ layout = dmc.Stack(
                         for activity in activity_colors
                     ],
                 ),
+                dmc.SegmentedControl(
+                    id="routes-period",
+                    value=periods["Month"],
+                    data=cast(
+                        Any, [{"value": v, "label": k} for k, v in periods.items()]
+                    ),
+                    persistence_type="local",
+                    persistence=True,
+                ),
                 Select("routes-color-by", {"Activity": "activity", "Date": "date"}),
             ],
         ),
-        dmc.Group(
-            justify="center",
-            gap="xs",
-            children=[
-                dmc.Button(
-                    label,
-                    id=f"routes-preset-{key}",
-                    variant="default",
-                    size="compact-sm",
-                )
-                for key, label in presets.items()
-            ],
-        ),
-        dmc.Box(
-            px="xl",
-            pb="lg",
-            children=dmc.RangeSlider(
-                id="routes-range",
-                min=first_day,
-                max=last_day,
-                step=1,
-                minRange=0,
-                value=[first_day, last_day],
-                marks=cast(Any, year_marks()),
-                label=None,
-                persistence_type="local",
-                persistence=True,
-            ),
+        dcc.Graph(
+            id="routes-chart",
+            config={"displayModeBar": False},
+            figure=build_figure(periods["Month"], list(activity_colors), full_range),
         ),
         dmc.Group(
             justify="center",
@@ -166,7 +235,7 @@ layout = dmc.Stack(
             center=cast(Any, center_point),
             zoom=12,
             preferCanvas=True,
-            style={"height": "calc(100vh - 260px)", "minHeight": "400px"},
+            style={"height": "calc(100vh - 400px)", "minHeight": "360px"},
             children=[
                 dl.LayersControl(base_layers() + overlays()),
                 dl.GeoJSON(
@@ -187,21 +256,18 @@ layout = dmc.Stack(
 
 # %%
 @dash.callback(
-    Output("routes-range", "value"),
-    [Input(f"routes-preset-{key}", "n_clicks") for key in presets],
-    prevent_initial_call=True,
+    Output("routes-chart", "figure"),
+    [
+        Input("routes-period", "value"),
+        *[Input(f"routes-{activity}", "checked") for activity in activity_colors],
+    ],
+    State("routes-chart", "relayoutData"),
 )
-def apply_preset(*_):
-    today = date.today()
-    starts = {
-        "all": to_date(first_day),
-        "year": date(today.year, 1, 1),
-        "12m": today - timedelta(days=365),
-        "90d": today - timedelta(days=90),
-    }
-    key = str(dash.ctx.triggered_id).removeprefix("routes-preset-")
-    start = (starts[key] - date(1970, 1, 1)).days
-    return [max(first_day, start), last_day]
+def update_chart(rule: str, *args):
+    (*checked, relayout) = args
+    activities = [a for a, on in zip(activity_colors, checked) if on]
+    # Rebuilding resets the axis, so carry the current selection across
+    return build_figure(rule, activities, selected_range(relayout))
 
 
 @dash.callback(
@@ -212,13 +278,14 @@ def apply_preset(*_):
         Output("routes-legend", "children"),
     ],
     [
-        Input("routes-range", "value"),
+        Input("routes-chart", "relayoutData"),
         Input("routes-color-by", "value"),
         *[Input(f"routes-{activity}", "checked") for activity in activity_colors],
     ],
 )
-def update_filter(day_range: list[int], color_by: str, *checked: bool):
-    (min_day, max_day) = day_range
+def update_filter(relayout: dict | None, color_by: str, *checked: bool):
+    (low, high) = selected_range(relayout)
+    (min_day, max_day) = (to_day(low), to_day(high))
     activities = [a for a, on in zip(activity_colors, checked) if on]
 
     hideout = {
@@ -229,53 +296,30 @@ def update_filter(day_range: list[int], color_by: str, *checked: bool):
         "activityColors": activity_colors,
     }
 
-    visible = sum(
-        1
-        for day, activity in routes
-        if min_day <= day <= max_day and activity in activities
-    )
+    visible = routes[
+        routes.day.between(min_day, max_day) & routes.activity.isin(activities)
+    ]
     readout = (
         f"{to_date(min_day)} → {to_date(max_day)} · "
-        f"{visible} route{'' if visible == 1 else 's'}"
+        f"{len(visible)} route{'' if len(visible) == 1 else 's'} · "
+        f"{visible.duration.sum():.1f} h"
     )
 
-    return (
-        hideout,
-        routes_url,
-        readout,
-        legend(color_by, activities, min_day, max_day),
-    )
+    return hideout, routes_url, readout, legend(color_by, min_day, max_day)
 
 
-def legend(color_by: str, activities: list[str], min_day: int, max_day: int):
-    if color_by == "date":
-        gradient = f"linear-gradient(to right, {', '.join(date_ramp)})"
-        return dmc.Group(
-            gap="xs",
-            children=[
-                dmc.Text(str(to_date(min_day)), size="xs", c="dimmed"),
-                dmc.Box(w=120, h=8, style={"background": gradient, "borderRadius": 4}),
-                dmc.Text(str(to_date(max_day)), size="xs", c="dimmed"),
-            ],
-        )
+def legend(color_by: str, min_day: int, max_day: int):
+    # Activity identity is already carried by the chart legend, so the map only
+    # needs one of its own for the date ramp
+    if color_by != "date":
+        return None
 
+    gradient = f"linear-gradient(to right, {', '.join(date_ramp)})"
     return dmc.Group(
-        gap="md",
+        gap="xs",
         children=[
-            dmc.Group(
-                gap=6,
-                children=[
-                    dmc.Box(
-                        w=16,
-                        h=3,
-                        style={
-                            "background": activity_colors[activity],
-                            "borderRadius": 2,
-                        },
-                    ),
-                    dmc.Text(activity.title(), size="xs", c="dimmed"),
-                ],
-            )
-            for activity in activities
+            dmc.Text(str(to_date(min_day)), size="xs", c="dimmed"),
+            dmc.Box(w=120, h=8, style={"background": gradient, "borderRadius": 4}),
+            dmc.Text(str(to_date(max_day)), size="xs", c="dimmed"),
         ],
     )
