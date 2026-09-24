@@ -20,6 +20,14 @@
         return "rgb(" + channels.join(",") + ")";
     }
 
+    // Hours as a decimal, e.g. 1.75 -> "1h 45m"
+    function formatDuration(hours) {
+        const minutes = Math.round(hours * 60);
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return h > 0 ? h + "h " + m + "m" : m + "m";
+    }
+
     function inRange(properties, hideout) {
         return (
             properties.day >= hideout.minDay &&
@@ -63,7 +71,8 @@
                         properties.activity +
                         " &middot; " +
                         properties.distance.toFixed(2) +
-                        " km",
+                        " mi &middot; " +
+                        formatDuration(properties.duration),
                     { sticky: true }
                 );
             },

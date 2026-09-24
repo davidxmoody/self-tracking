@@ -28,6 +28,8 @@ coordinate_precision = 5
 
 epoch = date(1970, 1, 1)
 
+metres_per_mile = 1609.344
+
 # Gaps longer than this are treated as pauses and left out of the duration.
 # Summing the sub-threshold gaps reproduces the durations in workouts/*.tsv;
 # plain start-to-end elapsed time overshoots badly on rides with stops.
@@ -102,10 +104,10 @@ def simplify(points: np.ndarray, tolerance: float) -> np.ndarray:
 
 
 def total_distance(points: np.ndarray) -> float:
-    """Track length in km, measured on the full (unsimplified) track."""
+    """Track length in miles, measured on the full (unsimplified) track."""
     projected = to_metres(points)
     steps = np.hypot(*np.diff(projected, axis=0).T)
-    return float(steps.sum() / 1000)
+    return float(steps.sum() / metres_per_mile)
 
 
 def moving_duration(times: list[datetime]) -> float:

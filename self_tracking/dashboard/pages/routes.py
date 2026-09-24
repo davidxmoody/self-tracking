@@ -49,6 +49,12 @@ def to_day(timestamp: pd.Timestamp) -> int:
     return int((timestamp.normalize() - epoch).days)
 
 
+def format_duration(hours: float) -> str:
+    """Hours as a decimal, e.g. 1.75 -> "1h 45m", matching the map tooltip."""
+    (h, m) = divmod(round(hours * 60), 60)
+    return f"{h}h {m}m" if h else f"{m}m"
+
+
 # %%
 def build_figure(rule: str, activities: list[str], x_range) -> go.Figure:
     selected = routes[routes.activity.isin(activities)]
@@ -73,7 +79,8 @@ def build_figure(rule: str, activities: list[str], x_range) -> go.Figure:
                     y=binned[activity],
                     name=activity.title(),
                     marker_color=activity_colors[activity],
-                    hovertemplate="%{x|%Y-%m-%d}<br>%{y:.1f} h<extra>%{fullData.name}</extra>",
+                    customdata=binned[activity].map(format_duration),
+                    hovertemplate="%{x|%Y-%m-%d}<br>%{customdata}<extra>%{fullData.name}</extra>",
                 )
             )
 
@@ -302,7 +309,7 @@ def update_filter(relayout: dict | None, color_by: str, *checked: bool):
     readout = (
         f"{to_date(min_day)} → {to_date(max_day)} · "
         f"{len(visible)} route{'' if len(visible) == 1 else 's'} · "
-        f"{visible.duration.sum():.1f} h"
+        f"{format_duration(visible.duration.sum())}"
     )
 
     return hideout, routes_url, readout, legend(color_by, min_day, max_day)
