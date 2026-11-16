@@ -20,6 +20,7 @@ several dotfiles commits it's treated as a normal project.
 # %%
 import numpy as np
 import pandas as pd
+import plotly.express as px
 
 import self_tracking.data as d
 
@@ -185,3 +186,37 @@ if __name__ == "__main__":
     print(project_time.groupby("repo").duration.sum().sort_values(ascending=False).round(1))
     print("\nHours by method:")
     print(allocations.groupby("method").duration.sum().round(1))
+
+
+# %% Monthly chart
+def monthly_chart(project_time: pd.DataFrame):
+    monthly = (
+        project_time.assign(month=project_time.date.dt.to_period("M").dt.start_time)
+        .groupby(["month", "repo"], as_index=False)
+        .duration.sum()
+    )
+    repo_order = (
+        monthly.groupby("repo").duration.sum().sort_values(ascending=False).index.tolist()
+    )
+    if UNKNOWN in repo_order:  # always show unknown last, in grey
+        repo_order.remove(UNKNOWN)
+        repo_order.append(UNKNOWN)
+
+    fig = px.bar(
+        monthly,
+        x="month",
+        y="duration",
+        color="repo",
+        category_orders={"repo": repo_order},
+        color_discrete_map={UNKNOWN: "lightgrey"},
+        labels={"month": "Month", "duration": "Hours", "repo": "Project"},
+        title="Estimated project time per month",
+    )
+    fig.update_layout(barmode="stack", bargap=0.1)
+    fig.update_xaxes(dtick="M3", tickformat="%b %Y")
+    fig.update_traces(hovertemplate="%{fullData.name}<br>%{x|%b %Y}<br>%{y:.1f}h<extra></extra>")
+    return fig
+
+
+if __name__ == "__main__":
+    monthly_chart(project_time).show(renderer="browser")
