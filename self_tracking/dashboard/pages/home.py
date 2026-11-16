@@ -31,7 +31,7 @@ WEEK = pd.Timedelta(days=7)
 
 # Cal per lb of body weight per day, used for the basal estimate. Fixed here on
 # purpose; the Energy Balance page is the place to play with this assumption.
-BASAL_MULTIPLIER = 11.5
+BASAL_MULTIPLIER = 10.6
 
 MIN_COLOR = "#E8A33D"
 IDEAL_COLOR = "#4C9F70"
