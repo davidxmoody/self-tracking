@@ -1,3 +1,14 @@
+# self-tracking (TypeScript prototype, 2023)
+
+An early TypeScript/React attempt at self-tracking (Strong one-rep-max graphs and an
+Apple Health export importer), later abandoned in favour of the Python rewrite on `main`.
+
+Kept for the record only. Personal data files (Strong CSV export, Apple Health output,
+generated JSON) were stripped from the whole history, and example health values in code
+comments were redacted, so the app will not run as-is.
+
+---
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
