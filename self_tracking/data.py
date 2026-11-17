@@ -2,7 +2,7 @@ import subprocess
 from datetime import datetime, timedelta
 from typing import Any, cast
 import pandas as pd
-from self_tracking.dirs import diary_dir, projects_dir
+from self_tracking.dirs import diary_dir, git_backup_dir, projects_dir
 
 
 # %%
@@ -220,13 +220,18 @@ def git_commits():
         ["git", "config", "user.name"], check=True, capture_output=True, text=True
     ).stdout.strip()
 
+    # Bare GitHub backups first, then local project repos override any with the same name
+    git_dirs = {repo.name.removesuffix(".git"): repo for repo in git_backup_dir.glob("*.git")}
+    git_dirs |= {repo.parent.name: repo for repo in projects_dir.glob("*/.git")}
+
     rows = []
-    for repo in sorted(projects_dir.glob("*/.git")):
+    for name, git_dir in sorted(git_dirs.items()):
         result = subprocess.run(
             [
                 "git",
-                f"--git-dir={repo}",
+                f"--git-dir={git_dir}",
                 "log",
+                "--all",  # include unmerged branches (each commit is still listed once)
                 "--pretty=tformat:%aI%x00%s",
                 f"--author={my_name}",
             ],
@@ -235,7 +240,7 @@ def git_commits():
         )
         for line in result.stdout.splitlines():
             dt, message = line.split("\x00", 1)
-            rows.append({"datetime": dt, "repo": repo.parent.name, "message": message})
+            rows.append({"datetime": dt, "repo": name, "message": message})
 
     df = pd.DataFrame(rows)
     if df.empty:
