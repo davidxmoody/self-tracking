@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "marimo-onerepmaxes",
+      "runtimeExecutable": ".venv/bin/marimo",
+      "runtimeArgs": ["run", "self_tracking/notebooks/onerepmaxes.py", "--port", "2718", "--headless"],
+      "port": 2718
+    }
+  ]
+}
