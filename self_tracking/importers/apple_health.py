@@ -68,24 +68,25 @@ def gather_records(
     unit: str,
     sources: list[str],
     agg="sum",
-    fast_date=True,
-    utc=True,
 ):
     df = pd.DataFrame(
         {
-            "date": (
-                node.attrib["endDate"][0:10]
-                if fast_date
-                else pd.to_datetime(node.attrib["endDate"], utc=utc).date()
-            ),
+            "end": node.attrib["endDate"],
             "value": float(node.attrib["value"]),
         }
         for node in root.iterfind(f"./Record[@type='HKQuantityTypeIdentifier{rtype}']")
         if node.attrib["sourceName"] in sources and node.attrib["unit"] == unit
     )
-    series = cast(pd.Series, df.groupby("date").agg(agg)["value"])
-    series.index = pd.to_datetime(series.index)
-    return series
+    # The export writes timestamps in whatever timezone the phone was in at
+    # export time, so normalise to London before taking the date. Otherwise
+    # records near midnight flip between days depending on when you export.
+    df["date"] = (
+        pd.to_datetime(df.end, format="%Y-%m-%d %H:%M:%S %z", utc=True)
+        .dt.tz_convert("Europe/London")
+        .dt.tz_localize(None)
+        .dt.normalize()
+    )
+    return cast(pd.Series, df.groupby("date").agg(agg)["value"])
 
 
 def write_tsv(
@@ -209,22 +210,21 @@ def extract_diet(root: ET.Element):
                 "DietaryEnergyConsumed",
                 "Cal",
                 diet_sources,
-                fast_date=False,
             ),
             "protein": gather_records(
-                root, "DietaryProtein", "g", diet_sources, fast_date=False
+                root, "DietaryProtein", "g", diet_sources
             ),
             "fat": gather_records(
-                root, "DietaryFatTotal", "g", diet_sources, fast_date=False
+                root, "DietaryFatTotal", "g", diet_sources
             ),
             "carbs": gather_records(
-                root, "DietaryCarbohydrates", "g", diet_sources, fast_date=False
+                root, "DietaryCarbohydrates", "g", diet_sources
             ),
             "sugar": gather_records(
-                root, "DietarySugar", "g", diet_sources, fast_date=False
+                root, "DietarySugar", "g", diet_sources
             ),
             "fiber": gather_records(
-                root, "DietaryFiber", "g", diet_sources, fast_date=False
+                root, "DietaryFiber", "g", diet_sources
             ),
         },
         axis=1,
