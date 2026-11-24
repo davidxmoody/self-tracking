@@ -148,6 +148,16 @@ def health_layers():
         order=1,
         ndigits=3,
     )
+    count += write_layer(
+        d.alcohol()["units"],
+        "health",
+        "alcohol",
+        title="Alcohol",
+        group_title="Health",
+        color="#D19A66",
+        order=2,
+        ndigits=2,
+    )
     return count
 
 

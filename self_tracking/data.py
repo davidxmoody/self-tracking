@@ -166,6 +166,10 @@ def diet():
     return read_date_indexed("diet")
 
 
+def alcohol():
+    return read_date_indexed("alcohol")
+
+
 def foods():
     sources = {
         "nutracheck": filepath("exports/nutracheck"),
