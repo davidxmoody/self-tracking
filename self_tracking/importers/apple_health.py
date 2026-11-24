@@ -236,6 +236,77 @@ def extract_diet(root: ET.Element):
 
 
 # %%
+FOOD_NUTRIENTS = {
+    "DietaryEnergyConsumed": ("kcal", "Cal"),
+    "DietaryFatTotal": ("fat", "g"),
+    "DietaryFatSaturated": ("sat_fat", "g"),
+    "DietaryCarbohydrates": ("carbs", "g"),
+    "DietarySugar": ("sugar", "g"),
+    "DietaryFiber": ("fibre", "g"),
+    "DietaryProtein": ("protein", "g"),
+    "DietarySodium": ("sodium", "mg"),
+}
+
+# MyNetDiary writes every food at a fixed time for its meal. Lunch moved from
+# 12:00 to 11:00 around April 2025.
+MYNETDIARY_MEALS = {
+    "08:00": "breakfast",
+    "11:00": "lunch",
+    "12:00": "lunch",
+    "15:00": "snacks",
+    "18:00": "dinner",
+}
+
+
+def parse_food(node: ET.Element):
+    food_type = node.find("./MetadataEntry[@key='HKFoodType']")
+    food = {
+        "start": parse_start(node),
+        "desc": food_type.attrib["value"].strip() if food_type is not None else "",
+    }
+    for record in node.iterfind("./Record"):
+        rtype = record.attrib["type"].removeprefix("HKQuantityTypeIdentifier")
+        if rtype in FOOD_NUTRIENTS:
+            col, unit = FOOD_NUTRIENTS[rtype]
+            if record.attrib["unit"] != unit:
+                raise Exception("Unexpected unit found")
+            food[col] = float(record.attrib["value"])
+    return food
+
+
+def extract_mynetdiary(root: ET.Element):
+    df = pd.DataFrame(
+        parse_food(node)
+        for node in root.iterfind(
+            "./Correlation[@type='HKCorrelationTypeIdentifierFood'][@sourceName='MyNetDiary']"
+        )
+    )
+
+    slot = df.start.dt.strftime("%H:%M")
+    unknown = set(slot) - set(MYNETDIARY_MEALS)
+    if unknown:
+        raise Exception(f"Unexpected MyNetDiary meal times: {sorted(unknown)}")
+
+    df["date"] = df.start.dt.tz_localize(None).dt.normalize()
+    df["meal"] = slot.map(MYNETDIARY_MEALS)
+    df["kcal"] = df.kcal.round().astype(int)
+    df["salt"] = df.sodium * 2.5 / 1000
+    df = df.loc[df.date <= pd.Timestamp(get_last_full_day(root))]
+
+    meal_order = {"breakfast": 0, "lunch": 1, "dinner": 2, "snacks": 3}
+    df = df.assign(order=df.meal.map(meal_order)).sort_values(
+        ["date", "order"], kind="stable"
+    )
+
+    columns = ["date", "meal", "desc", "kcal", "fat", "sat_fat", "carbs", "sugar", "fibre", "protein", "salt"]
+    df["date"] = df.date.dt.strftime("%Y-%m-%d")
+    for col in columns[4:]:
+        df[col] = df[col].round(3)
+
+    return write_tsv(df[columns], "mynetdiary", index=False, dp={})
+
+
+# %%
 def extract_weight(root: ET.Element):
     weight_sources = ["Withings"]
 
@@ -332,6 +403,7 @@ def main():
         count += extract_cycling(root)
         count += extract_activity(root)
         count += extract_diet(root)
+        count += extract_mynetdiary(root)
         count += extract_weight(root)
         count += extract_meditation(root)
         count += extract_sleep(root)
