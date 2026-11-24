@@ -179,8 +179,8 @@ def foods():
         ],
         ignore_index=True,
     )
-    df = df.drop(columns=["nutracheck_id", "yazio_id"])
-    columns = ["date", "source", "meal", "time", "desc", "serving"]
+    df = df.drop(columns=["nutracheck_id", "yazio_id", "time"])
+    columns = ["date", "source", "meal", "desc", "serving"]
     df = df[columns + [c for c in df.columns if c not in columns]]
     return df.sort_values("date", kind="stable").reset_index(drop=True)
 
