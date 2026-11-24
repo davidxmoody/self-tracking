@@ -166,6 +166,25 @@ def diet():
     return read_date_indexed("diet")
 
 
+def foods():
+    sources = {
+        "nutracheck": filepath("exports/nutracheck"),
+        "yazio": filepath("exports/yazio"),
+        "mynetdiary": filepath("mynetdiary"),
+    }
+    df = pd.concat(
+        [
+            pd.read_table(path, parse_dates=["date"]).assign(source=source)
+            for source, path in sources.items()
+        ],
+        ignore_index=True,
+    )
+    df = df.drop(columns=["nutracheck_id", "yazio_id"])
+    columns = ["date", "source", "meal", "time", "desc", "serving"]
+    df = df[columns + [c for c in df.columns if c not in columns]]
+    return df.sort_values("date", kind="stable").reset_index(drop=True)
+
+
 def sleep():
     df = read_date_indexed("sleep")
     df["Asleep"] = df.Deep + df.Core + df.REM
