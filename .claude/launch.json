@@ -6,6 +6,12 @@
       "runtimeExecutable": ".venv/bin/marimo",
       "runtimeArgs": ["run", "self_tracking/notebooks/onerepmaxes.py", "--port", "2718", "--headless"],
       "port": 2718
+    },
+    {
+      "name": "dash-dashboard",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["-m", "self_tracking.dashboard.app"],
+      "port": 8050
     }
   ]
 }
