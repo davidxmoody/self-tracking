@@ -66,7 +66,7 @@ def update_graph(rule: str, agg: str):
     weight_raw = d.weight().weight[start:end]
 
     lowess_result = sm.nonparametric.lowess(
-        weight_raw, weight_raw.index.astype(np.int64), frac=0.03
+        weight_raw, weight_raw.index.as_unit("ns").astype(np.int64), frac=0.03
     )
     weight = (
         pd.Series(data=lowess_result[:, 1], index=pd.to_datetime(lowess_result[:, 0]))

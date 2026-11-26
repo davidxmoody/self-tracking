@@ -40,7 +40,7 @@ df["weight_rolling"] = (
 weight_raw = weight.weight[start_date:end_date]
 
 lowess_result = sm.nonparametric.lowess(
-    weight_raw, weight_raw.index.astype(np.int64), frac=0.03
+    weight_raw, weight_raw.index.as_unit("ns").astype(np.int64), frac=0.03
 )
 
 df["weight"] = (
